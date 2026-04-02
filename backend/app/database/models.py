@@ -14,8 +14,10 @@ from sqlalchemy import (
     Date,
     Float,
 )
+from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 from datetime import datetime
+from typing import Optional
 from app.database.connection import Base
 
 
@@ -24,17 +26,25 @@ class User(Base):
 
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True, autoincrement=True, index=True)
-    username = Column(String(50), unique=True, nullable=False, index=True)
-    nickname = Column(String(50), nullable=True)  # 昵称，可独立于用户名修改
-    email = Column(String(100), unique=True, nullable=True, index=True)
-    password_hash = Column(String(255), nullable=False)
-    phone = Column(String(20), nullable=True)
-    school = Column(String(100), nullable=True)
-    avatar = Column(String(255), nullable=True)
-    status = Column(String(20), default="active", nullable=False)
-    created_at = Column(DateTime, default=func.now(), nullable=False)
-    last_login_at = Column(DateTime, nullable=True)
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True, index=True
+    )
+    username: Mapped[str] = mapped_column(
+        String(50), unique=True, nullable=False, index=True
+    )
+    nickname: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    email: Mapped[Optional[str]] = mapped_column(
+        String(100), unique=True, nullable=True, index=True
+    )
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    school: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    avatar: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="active", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=func.now(), nullable=False
+    )
+    last_login_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
 
 class ChatSession(Base):
@@ -42,26 +52,28 @@ class ChatSession(Base):
 
     __tablename__ = "chat_sessions"
 
-    id = Column(String(36), primary_key=True, index=True)  # UUID
-    user_id = Column(
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    start_time = Column(DateTime, default=func.now(), nullable=False)
-    end_time = Column(DateTime, nullable=True)
-    status = Column(String(20), default="active", nullable=False)
-    summary = Column(Text, nullable=True)
-    initial_emotion_type = Column(String(50), nullable=True)
-    initial_intensity = Column(Integer, nullable=True)
-    final_intensity = Column(Integer, nullable=True)
-    recommended_skills = Column(Text, nullable=True)  # JSON array
-    is_crisis = Column(Boolean, default=False, nullable=False)
-    assessment_status = Column(
+    start_time: Mapped[datetime] = mapped_column(
+        DateTime, default=func.now(), nullable=False
+    )
+    end_time: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="active", nullable=False)
+    summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    initial_emotion_type: Mapped[Optional[str]] = mapped_column(
+        String(50), nullable=True
+    )
+    initial_intensity: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    final_intensity: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    recommended_skills: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    is_crisis: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    assessment_status: Mapped[str] = mapped_column(
         String(20), default="not_started", nullable=False
-    )  # not_started/in_progress/completed
-    assessment_data = Column(
-        Text, nullable=True
-    )  # JSON: {message_count, step, selected_image, body_parts, intensity}
-    agent_state = Column(Text, nullable=True)  # JSON: 多AGENT完整状态
+    )
+    assessment_data: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    agent_state: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     __table_args__ = (Index("idx_user_start_time", "user_id", "start_time"),)
 
@@ -71,18 +83,24 @@ class ChatMessage(Base):
 
     __tablename__ = "chat_messages"
 
-    id = Column(Integer, primary_key=True, autoincrement=True, index=True)
-    session_id = Column(
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True, index=True
+    )
+    session_id: Mapped[str] = mapped_column(
         String(36),
         ForeignKey("chat_sessions.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
-    role = Column(String(20), nullable=False)  # user/assistant/system
-    content = Column(Text, nullable=False)
-    message_type = Column(String(30), default="text", nullable=False)
-    extra_data = Column(Text, nullable=True)  # JSON
-    created_at = Column(DateTime, default=func.now(), nullable=False)
+    role: Mapped[str] = mapped_column(String(20), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    message_type: Mapped[str] = mapped_column(
+        String(30), default="text", nullable=False
+    )
+    extra_data: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=func.now(), nullable=False
+    )
 
     __table_args__ = (Index("idx_session_created", "session_id", "created_at"),)
 
@@ -92,23 +110,25 @@ class EmotionDiary(Base):
 
     __tablename__ = "emotion_diaries"
 
-    id = Column(String(36), primary_key=True, index=True)  # UUID
-    user_id = Column(
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    emotion_type = Column(String(50), nullable=False)
-    emotion_label = Column(String(50), nullable=False)
-    emoji = Column(String(10), nullable=False)
-    intensity = Column(Integer, nullable=False)
-    content = Column(Text, nullable=True)
-    triggers = Column(Text, nullable=True)  # JSON array
-    body_parts = Column(Text, nullable=True)  # JSON object
-    selected_images = Column(Text, nullable=True)  # JSON array
-    created_at = Column(DateTime, default=func.now(), nullable=False)
-    updated_at = Column(
+    emotion_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    emotion_label: Mapped[str] = mapped_column(String(50), nullable=False)
+    emoji: Mapped[str] = mapped_column(String(10), nullable=False)
+    intensity: Mapped[int] = mapped_column(Integer, nullable=False)
+    content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    triggers: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    body_parts: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    selected_images: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=func.now(), onupdate=func.now(), nullable=False
     )
-    diary_date = Column(Date, nullable=False, index=True)
+    diary_date: Mapped[datetime] = mapped_column(Date, nullable=False, index=True)
 
     __table_args__ = (
         Index("idx_user_diary_date", "user_id", "diary_date", unique=True),
@@ -121,24 +141,28 @@ class SkillUsageRecord(Base):
 
     __tablename__ = "skill_usage_records"
 
-    id = Column(Integer, primary_key=True, autoincrement=True, index=True)
-    session_id = Column(
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True, index=True
+    )
+    session_id: Mapped[Optional[str]] = mapped_column(
         String(36),
         ForeignKey("chat_sessions.id", ondelete="CASCADE"),
         nullable=True,
         index=True,
     )
-    user_id = Column(
+    user_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    skill_name = Column(String(100), nullable=False)
-    skill_category = Column(String(50), nullable=False)
-    before_intensity = Column(Integer, nullable=False)
-    after_intensity = Column(Integer, nullable=True)
-    effectiveness = Column(String(20), nullable=True)
-    duration_minutes = Column(Integer, nullable=True)
-    context = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=func.now(), nullable=False)
+    skill_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    skill_category: Mapped[str] = mapped_column(String(50), nullable=False)
+    before_intensity: Mapped[int] = mapped_column(Integer, nullable=False)
+    after_intensity: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    effectiveness: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    duration_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    context: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=func.now(), nullable=False
+    )
 
     __table_args__ = (Index("idx_user_created_skill", "user_id", "created_at"),)
 
@@ -148,27 +172,29 @@ class CrisisEvent(Base):
 
     __tablename__ = "crisis_events"
 
-    id = Column(String(36), primary_key=True, index=True)  # UUID
-    user_id = Column(
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    session_id = Column(
+    session_id: Mapped[Optional[str]] = mapped_column(
         String(36),
         ForeignKey("chat_sessions.id", ondelete="CASCADE"),
         nullable=True,
         index=True,
     )
-    trigger_type = Column(String(50), nullable=False)
-    trigger_reason = Column(Text, nullable=False)
-    emotion_intensity = Column(Integer, nullable=False)
-    detected_keywords = Column(Text, nullable=True)  # JSON array
-    risk_level = Column(String(20), nullable=False)
-    status = Column(String(20), default="pending", nullable=False)
-    handled_by = Column(Integer, nullable=True)
-    handled_at = Column(DateTime, nullable=True)
-    action_taken = Column(Text, nullable=True)
-    notes = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=func.now(), nullable=False)
+    trigger_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    trigger_reason: Mapped[str] = mapped_column(Text, nullable=False)
+    emotion_intensity: Mapped[int] = mapped_column(Integer, nullable=False)
+    detected_keywords: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    risk_level: Mapped[str] = mapped_column(String(20), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False)
+    handled_by: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    handled_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    action_taken: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=func.now(), nullable=False
+    )
 
     __table_args__ = (Index("idx_user_status", "user_id", "status"),)
 
@@ -178,24 +204,24 @@ class EmotionImage(Base):
 
     __tablename__ = "emotion_images"
 
-    id = Column(Integer, primary_key=True, autoincrement=True, index=True)
-    image_id = Column(
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True, index=True
+    )
+    image_id: Mapped[str] = mapped_column(
         String(50), unique=True, nullable=False, index=True
-    )  # 如: "1001", "_3292", "2100"
-    name = Column(String(100), nullable=True)  # 图片名称/描述
-    category = Column(
-        String(20), nullable=False, index=True
-    )  # positive/negative/neutral
-    valence = Column(Float, nullable=False)  # 效价 (1-9)
-    valence_std = Column(Float, nullable=True)  # 效价标准差
-    arousal = Column(Float, nullable=False)  # 唤醒度 (1-9)
-    arousal_std = Column(Float, nullable=True)  # 唤醒度标准差
-    dominance = Column(Float, nullable=False)  # 支配度 (1-9)
-    dominance_std = Column(Float, nullable=True)  # 支配度标准差
-    file_path = Column(
-        String(255), nullable=False
-    )  # 相对路径: /static/images/caps/positive/1001.jpg
-    created_at = Column(DateTime, default=func.now(), nullable=False)
+    )
+    name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    category: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    valence: Mapped[float] = mapped_column(Float, nullable=False)
+    valence_std: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    arousal: Mapped[float] = mapped_column(Float, nullable=False)
+    arousal_std: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    dominance: Mapped[float] = mapped_column(Float, nullable=False)
+    dominance_std: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    file_path: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=func.now(), nullable=False
+    )
 
     __table_args__ = (
         Index("idx_category_valence", "category", "valence"),
@@ -208,11 +234,19 @@ class Admin(Base):
 
     __tablename__ = "admins"
 
-    id = Column(Integer, primary_key=True, autoincrement=True, index=True)
-    username = Column(String(50), unique=True, nullable=False, index=True)
-    email = Column(String(100), unique=True, nullable=False, index=True)
-    password_hash = Column(String(255), nullable=False)
-    role = Column(String(20), default="admin", nullable=False)  # super_admin, admin
-    status = Column(String(20), default="active", nullable=False)  # active, inactive
-    last_login_at = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=func.now(), nullable=False)
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True, index=True
+    )
+    username: Mapped[str] = mapped_column(
+        String(50), unique=True, nullable=False, index=True
+    )
+    email: Mapped[str] = mapped_column(
+        String(100), unique=True, nullable=False, index=True
+    )
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    role: Mapped[str] = mapped_column(String(20), default="admin", nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="active", nullable=False)
+    last_login_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=func.now(), nullable=False
+    )
