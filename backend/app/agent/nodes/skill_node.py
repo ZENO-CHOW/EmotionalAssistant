@@ -9,11 +9,8 @@ from langchain_core.messages import AIMessage
 from app.agent.state import AgentState
 from app.core.llm_client import get_llm_client
 from app.dbt.skills import get_skill_info
-
-from ..state import AgentState
-from ...core.skill_recommender import SkillRecommender
-from ...core.llm_client import get_llm_client
-from ...dbt.skills import SKILLS_DATABASE
+from app.core.skill_recommender import SkillRecommender
+from app.dbt.skills import SKILLS_DATABASE
 
 
 def skill_recommendation_node(
@@ -29,20 +26,17 @@ def skill_recommendation_node(
     if not state.get("current_emotion"):
         return state
 
-    emotion = state["current_emotion"]
+    emotion = state["current_emotion"] or {}
 
-    # 初始化技能推荐器
     recommender = SkillRecommender(db)
 
-    # 执行技能推荐
     recommendation = recommender.recommend_skill(
-        emotion_type=emotion["type"],
-        intensity=emotion["intensity"],
-        user_id=state["user_id"],
+        emotion_type=emotion.get("type") or "calm",
+        intensity=emotion.get("intensity") or 5,
+        user_id=state.get("user_id") or 0,
     )
 
-    # 更新状态
-    skill_name = recommendation["skill_name"]
+    skill_name = recommendation.get("skill_name") or ""
     skill_info = SKILLS_DATABASE.get(skill_name, {})
     state["recommended_skill"] = {
         "name": skill_name,
@@ -53,27 +47,30 @@ def skill_recommendation_node(
         ),
         "estimated_duration": recommendation.get("estimated_duration", "5-10分钟"),
     }
-    state["skill_step"] = 0  # 初始步骤
-    state["before_intensity"] = emotion["intensity"]
+    state["skill_step"] = 0
+    state["before_intensity"] = emotion.get("intensity") or 5
 
-    # 生成推荐消息
+    messages = state.get("messages") or []
+    last_msg_content = ""
+    if messages:
+        last_msg = messages[-1]
+        content = last_msg.content
+        last_msg_content = content if isinstance(content, str) else str(content)
+
     recommendation_message = _generate_recommendation_message(
         emotion=emotion,
         skill_name=skill_name,
         skill_info=skill_info,
-        user_message=state["messages"][-1].content if state["messages"] else "",
+        user_message=last_msg_content,
     )
 
     state["messages"] = list(state["messages"]) + [
         AIMessage(content=recommendation_message)
     ]
 
-    # 设置下一步动作
     state["next_action"] = "wait_skill_confirmation"
 
     return state
-
-    skill_history = _get_skill_history(state, db)
 
 
 def _generate_recommendation_message(
@@ -103,8 +100,9 @@ def _generate_recommendation_message(
         "fear": "恐惧",
     }
 
-    emotion_cn = emotion_map.get(emotion["type"], "这种感觉")
-    intensity = emotion["intensity"]
+    emotion_type = emotion.get("type") if isinstance(emotion, dict) else "calm"
+    emotion_cn = emotion_map.get(emotion_type or "", "这种感觉")
+    intensity = emotion.get("intensity") or 5
 
     # 技能介绍
     introduction = skill_info.get("introduction", "")

@@ -17,12 +17,13 @@ def session_summary_node(state: AgentState, db: Optional[Session] = None) -> Age
     1. 生成对话总结
     2. 生成关闭语
     """
-    messages = []
+    messages: list[dict[str, str]] = []
     for msg in state["messages"]:
-        if hasattr(msg, "role"):
-            messages.append({"role": msg.role, "content": msg.content})
+        content = msg.content if isinstance(msg.content, str) else str(msg.content)
+        if hasattr(msg, "type"):
+            messages.append({"role": str(msg.type), "content": content})
         else:
-            messages.append({"role": "unknown", "content": str(msg)})
+            messages.append({"role": "unknown", "content": content})
 
     llm = get_llm_client()
 
@@ -31,8 +32,8 @@ def session_summary_node(state: AgentState, db: Optional[Session] = None) -> Age
 对话内容：
 {chr(10).join([f"{m['role']}: {m['content'][:100]}..." if len(m["content"]) > 100 else f"{m['role']}: {m['content']}" for m in messages])}
 
-情绪变化：{state.get("before_intensity", "?")} → {state.get("after_intensity", "?")}
-使用的技能：{state.get("recommended_skill", {}).get("name", "无")}
+  情绪变化：{state.get("before_intensity", "?")} → {state.get("after_intensity", "?")}
+  使用的技能：{(state.get("recommended_skill") or {}).get("name") or "无"}
 
 请以 JSON 格式返回：
 {{
@@ -43,7 +44,7 @@ def session_summary_node(state: AgentState, db: Optional[Session] = None) -> Age
 }}"""
 
     try:
-        summary_result = llm.analyze_emotion(summary_prompt, messages[-5:])
+        summary_result = llm.analyze_emotion(summary_prompt, messages[-5:]) or {}
         summary = summary_result.get("summary", "这是一次情绪管理对话。")
     except Exception:
         summary = "这是一次情绪管理对话，你分享了自己的感受并尝试了调节技能。"

@@ -89,7 +89,7 @@ class MessageBus:
         self.publish(message)
         return message
 
-    def get_history(self, agent_name: str = None) -> list:
+    def get_history(self, agent_name: Optional[str] = None) -> list:
         """获取消息历史"""
         if agent_name:
             return [

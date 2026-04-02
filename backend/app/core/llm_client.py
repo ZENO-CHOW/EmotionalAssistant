@@ -4,12 +4,16 @@ LLM客户端封装
 """
 
 import logging
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, Union, Sequence, cast
 import json
 from openai import OpenAI
+from openai.types.chat import ChatCompletionMessageParam
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+MessageDict = Dict[str, str]
+MessageList = List[MessageDict]
 
 
 class LLMClient:
@@ -41,7 +45,7 @@ class LLMClient:
 
     def chat(
         self,
-        messages: List[Dict[str, str]],
+        messages: MessageList,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         system_prompt: Optional[str] = None,
@@ -63,19 +67,19 @@ class LLMClient:
             return None
 
         try:
-            # 构建完整消息
-            full_messages = []
+            full_messages: List[ChatCompletionMessageParam] = []
             if system_prompt:
-                full_messages.append({"role": "system", "content": system_prompt})
+                full_messages.append(
+                    cast(
+                        ChatCompletionMessageParam,
+                        {"role": "system", "content": system_prompt},
+                    )
+                )
 
-            # 添加历史消息
             for msg in messages:
                 if msg.get("role") and msg.get("content"):
-                    full_messages.append(
-                        {"role": msg["role"], "content": msg["content"]}
-                    )
+                    full_messages.append(cast(ChatCompletionMessageParam, msg))
 
-            # 调用API
             response = self.client.chat.completions.create(
                 model=settings.LLM_MODEL,
                 messages=full_messages,
@@ -90,8 +94,9 @@ class LLMClient:
             # 移除markdown格式符号（**）以避免在聊天界面显示
             if reply:
                 reply = reply.replace("**", "")
-
-            logger.info(f"LLM调用成功，回复长度: {len(reply)}")
+                logger.info(f"LLM调用成功，回复长度: {len(reply)}")
+            else:
+                logger.warning("LLM返回空回复")
             return reply
 
         except Exception as e:
@@ -99,7 +104,9 @@ class LLMClient:
             return None
 
     def analyze_emotion(
-        self, user_message: str, conversation_history: List[Dict[str, str]] = None
+        self,
+        user_message: str,
+        conversation_history: Optional[MessageList] = None,
     ) -> Optional[Dict]:
         """
         使用LLM分析文本情绪
@@ -274,7 +281,10 @@ class LLMClient:
         return response or "请继续下一步练习。"
 
     def generate_response(
-        self, system_prompt: str, user_message: str, context: Dict[str, Any] = None
+        self,
+        system_prompt: str,
+        user_message: str,
+        context: Optional[Dict[str, Any]] = None,
     ) -> str:
         """通用对话生成"""
         if context:
@@ -285,7 +295,7 @@ class LLMClient:
         response = self.chat(messages, system_prompt=system_prompt)
         return response or "我理解你的感受。"
 
-    def stream_chat(self, messages: List[Dict[str, str]]):
+    def stream_chat(self, messages: MessageList):
         """流式对话（用于最终响应）"""
         if not self.client:
             yield "LLM未配置"
@@ -294,7 +304,7 @@ class LLMClient:
         try:
             response = self.client.chat.completions.create(
                 model=settings.LLM_MODEL,
-                messages=messages,
+                messages=cast(List[ChatCompletionMessageParam], messages),
                 temperature=settings.LLM_TEMPERATURE,
                 stream=True,
             )

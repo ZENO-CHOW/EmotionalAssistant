@@ -4,7 +4,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from typing import Optional, AsyncGenerator, Dict
+from typing import Optional, AsyncGenerator, Dict, cast
 import json
 import logging
 import re
@@ -28,6 +28,7 @@ from app.agent.langgraph_builder import create_agent_graph, create_agent_with_me
 from app.core.dependencies import get_current_user_id
 from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.messages import HumanMessage, AIMessage, BaseMessage
+from langchain_core.runnables import RunnableConfig
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -91,7 +92,7 @@ def parse_user_input(request: ChatMessageRequest) -> dict:
     Returns:
         包含 parsed_intensity, parsed_body_sensation, parsed_image_emotion, parsed_pending_image_url 的字典
     """
-    parsed = {
+    parsed: dict = {
         "intensity": None,
         "body_sensation": None,
         "image_emotion": None,
@@ -99,8 +100,9 @@ def parse_user_input(request: ChatMessageRequest) -> dict:
     }
 
     if request.message_type == MessageType.INTENSITY_RATING:
-        parsed["intensity"] = request.metadata.get("value")
-        logger.info(f"解析强度选择: {parsed['intensity']}")
+        if request.metadata:
+            parsed["intensity"] = request.metadata.get("value")
+            logger.info(f"解析强度选择: {parsed['intensity']}")
 
     elif request.message_type == MessageType.BODY_SELECTION:
         parsed["body_sensation"] = parse_body_selection(request.metadata)
@@ -108,12 +110,13 @@ def parse_user_input(request: ChatMessageRequest) -> dict:
             logger.info(f"解析身体部位选择: {parsed['body_sensation']}")
 
     elif request.message_type == MessageType.IMAGE_SELECTION:
-        parsed["image_emotion"] = request.metadata.get("emotion_type")
-        image_urls = request.metadata.get("image_urls")
-        parsed["pending_image_urls"] = image_urls if image_urls else []
-        logger.info(
-            f"解析图片选择: image_emotion={parsed['image_emotion']}, pending_image_urls={len(parsed['pending_image_urls'])}张图片"
-        )
+        if request.metadata:
+            parsed["image_emotion"] = request.metadata.get("emotion_type")
+            image_urls = request.metadata.get("image_urls")
+            parsed["pending_image_urls"] = image_urls if image_urls else []
+            logger.info(
+                f"解析图片选择: image_emotion={parsed['image_emotion']}, pending_image_urls={len(parsed['pending_image_urls'])}张图片"
+            )
 
     return parsed
 
@@ -178,9 +181,9 @@ async def send_message(
         messages = []
         for msg in history_messages:
             if msg.role == "user":
-                messages.append(HumanMessage(content=msg.content))
+                messages.append(HumanMessage(content=str(msg.content)))
             elif msg.role == "assistant":
-                messages.append(AIMessage(content=msg.content))
+                messages.append(AIMessage(content=str(msg.content)))
 
         messages.append(HumanMessage(content=request.message))
 
@@ -188,9 +191,7 @@ async def send_message(
             session_id=session.id,
             role="user",
             content=request.message,
-            message_type=request.message_type.value
-            if hasattr(request.message_type, "value")
-            else "text",
+            message_type=str(request.message_type),
             metadata=request.metadata,
         )
 
@@ -245,8 +246,9 @@ async def send_message(
  - 不要使用括号添加语气描述
  - 不要使用markdown格式符号"""
 
-                ai_reply = llm_client.chat(
-                    history_for_prompt, system_prompt=system_prompt
+                ai_reply = (
+                    llm_client.chat(history_for_prompt, system_prompt=system_prompt)
+                    or ""
                 )
                 ai_reply = ai_reply.replace("**", "")
                 ai_reply = clean_llm_response(ai_reply)
@@ -281,18 +283,19 @@ async def send_message(
 
         # 状态管理：恢复已有状态或创建新状态
         graph = create_agent_graph(checkpointer=_checkpointer)
-        config = {"configurable": {"thread_id": str(session.id)}}
+        config: RunnableConfig = {"configurable": {"thread_id": str(session.id)}}
 
         # 检查是否有已有状态
+        checkpoint = None
         try:
             checkpoint = graph.get_state(config)
             has_existing_state = (
-                checkpoint and hasattr(checkpoint, "values") and checkpoint.values
+                checkpoint is not None and checkpoint.values is not None
             )
         except Exception:
             has_existing_state = False
 
-        if has_existing_state:
+        if has_existing_state and checkpoint is not None:
             # 有已有状态，追加新消息
             current_state: AgentState = AgentState(**checkpoint.values)
             current_state["messages"] = list(current_state["messages"]) + [
@@ -303,8 +306,9 @@ async def send_message(
             if intensity is not None:
                 current_state["intensity"] = intensity
                 logger.info(f"更新强度: {intensity}")
-                if current_state.get("current_emotion"):
-                    current_state["current_emotion"]["intensity"] = intensity
+                current_emotion = current_state.get("current_emotion")
+                if current_emotion is not None:
+                    current_emotion["intensity"] = intensity
 
             if body_sensation:
                 current_state["body_sensation"] = body_sensation
@@ -332,8 +336,9 @@ async def send_message(
             # 设置各字段（如果选择了）
             if intensity is not None:
                 current_state["intensity"] = intensity
-                if current_state.get("current_emotion"):
-                    current_state["current_emotion"]["intensity"] = intensity
+                current_emotion = current_state.get("current_emotion")
+                if current_emotion is not None:
+                    current_emotion["intensity"] = intensity
 
             if body_sensation:
                 current_state["body_sensation"] = body_sensation
@@ -365,7 +370,7 @@ async def send_message(
         ai_message_id = repo.save_message(
             session_id=session.id,
             role="assistant",
-            content=ai_reply,
+            content=str(ai_reply),
             message_type="text",
         )
 
@@ -415,7 +420,7 @@ async def send_message(
                 )
 
         return ChatMessageResponse(
-            reply=ai_reply,
+            reply=ai_reply,  # pyright: ignore[reportArgumentType]
             session_id=session.id,
             message_id=ai_message_id,
             requires_input=requires_input,
@@ -462,17 +467,15 @@ async def send_message_multi_agent(
         messages = []
         for msg in history_messages:
             if msg.role == "user":
-                messages.append(HumanMessage(content=msg.content))
+                messages.append(HumanMessage(content=str(msg.content)))
             elif msg.role == "assistant":
-                messages.append(AIMessage(content=msg.content))
+                messages.append(AIMessage(content=str(msg.content)))
 
         repo.save_message(
             session_id=session.id,
             role="user",
             content=request.message,
-            message_type=request.message_type.value
-            if hasattr(request.message_type, "value")
-            else "text",
+            message_type=str(request.message_type),
             metadata=request.metadata,
         )
 
@@ -488,7 +491,7 @@ async def send_message_multi_agent(
 
         existing_state = repo.get_agent_state(session.id)
         if existing_state:
-            current_state = existing_state
+            current_state: AgentState = cast(AgentState, existing_state)
             logger.info(f"恢复已有状态，会话: {session_id_str}")
         else:
             current_state = create_initial_state(session_id_str, user_id)
@@ -612,6 +615,10 @@ async def send_message_stream(
 
         if request.session_id:
             session = repo.get_session(request.session_id)
+            if not session:
+                raise HTTPException(
+                    status_code=404, detail={"code": 404, "message": "会话不存在"}
+                )
         else:
             session = repo.create_session(user_id)
 

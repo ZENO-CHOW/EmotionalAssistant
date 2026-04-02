@@ -114,6 +114,8 @@ class SkillGuidance:
 
     def _get_current_step_response(self) -> Dict[str, Any]:
         """获取当前步骤的引导响应"""
+        if not self.skill_data:
+            return {"error": "Guidance not initialized"}
         steps = self.skill_data.get("steps", [])
         current_step_data = steps[self.current_step - 1] if steps else {}
 

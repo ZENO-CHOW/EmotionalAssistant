@@ -79,11 +79,13 @@ async def create_diary(
 
         # 准备日记数据（转换字段名）
         diary_data = request.model_dump()
-        if "emotion" in diary_data and diary_data["emotion"]:
-            diary_data["emotion_type"] = diary_data["emotion"]
+        if "emotion" in diary_data:
+            if diary_data["emotion"]:
+                diary_data["emotion_type"] = diary_data["emotion"]
             del diary_data["emotion"]
-        if "emotionLabel" in diary_data and diary_data["emotionLabel"]:
-            diary_data["emotion_label"] = diary_data["emotionLabel"]
+        if "emotionLabel" in diary_data:
+            if diary_data["emotionLabel"]:
+                diary_data["emotion_label"] = diary_data["emotionLabel"]
             del diary_data["emotionLabel"]
         diary_data["diary_date"] = diary_date
 
@@ -202,11 +204,13 @@ async def update_diary(
 
         # 准备更新数据（转换字段名）
         updates = request.model_dump(exclude_unset=True)
-        if "emotion" in updates and updates["emotion"]:
-            updates["emotion_type"] = updates["emotion"]
+        if "emotion" in updates:
+            if updates["emotion"]:
+                updates["emotion_type"] = updates["emotion"]
             del updates["emotion"]
-        if "emotionLabel" in updates and updates["emotionLabel"]:
-            updates["emotion_label"] = updates["emotionLabel"]
+        if "emotionLabel" in updates:
+            if updates["emotionLabel"]:
+                updates["emotion_label"] = updates["emotionLabel"]
             del updates["emotionLabel"]
 
         # 更新日记
@@ -261,7 +265,7 @@ async def delete_diary(
         )
 
 
-@router.get("/diary/today", response_model=Optional[DiaryResponse])
+@router.get("/diary/today", response_model=DiaryResponse | None)
 async def get_today_diary(
     db: Session = Depends(get_db), user_id: int = Depends(get_current_user_id)
 ):

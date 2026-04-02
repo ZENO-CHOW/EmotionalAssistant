@@ -33,10 +33,9 @@ def emotion_recognition_node(
         return state
 
     # 1. 优先使用用户选择的情绪图片
-    if state.get("image_emotion"):
-        image_emotion = state["image_emotion"]
+    image_emotion = state.get("image_emotion")
+    if image_emotion:
         if state.get("intensity") is None:
-            # 图片已选择，但还没有强度评估
             state["requires_user_input"] = True
             state["next_action"] = "wait_intensity_rating"
             logger.info("等待用户评估情绪强度")
@@ -56,8 +55,9 @@ def emotion_recognition_node(
     # 2. 使用用户选择的强度
     if state.get("intensity") is not None:
         intensity = state["intensity"]
-        if state.get("current_emotion"):
-            state["current_emotion"]["intensity"] = intensity
+        current_emotion = state.get("current_emotion")
+        if current_emotion:
+            current_emotion["intensity"] = intensity
             state["requires_user_input"] = False
             state["next_action"] = None
             logger.info(f"更新情绪强度: {intensity}")
@@ -72,26 +72,35 @@ def emotion_recognition_node(
         return state
 
     # 3. 使用用户选择的身体感知辅助判断
-    if state.get("body_sensation"):
-        body_sensation = state["body_sensation"]
-        selected_parts = body_sensation.get("selected_parts", [])
-        part_names = body_sensation.get("part_names", {})
+    body_sensation = state.get("body_sensation")
+    if body_sensation:
+        selected_parts = (
+            body_sensation.get("selected_parts", []) if body_sensation else []
+        )
+        part_names = body_sensation.get("part_names", {}) if body_sensation else {}
         logger.info(f"使用身体感知辅助: {part_names}")
 
     # 4. 调用 LLM 文本分析（原有逻辑）
-    user_message = latest_message.content
+    message_content = latest_message.content
+    if isinstance(message_content, list):
+        user_message = str(message_content)
+    else:
+        user_message = message_content
 
-    history = []
+    history: list[dict[str, str]] = []
     for msg in state["messages"][-6:-1]:
         if isinstance(msg, HumanMessage):
-            history.append({"role": "user", "content": msg.content})
+            content = msg.content if isinstance(msg.content, str) else str(msg.content)
+            history.append({"role": "user", "content": content})
         elif isinstance(msg, AIMessage):
-            history.append({"role": "assistant", "content": msg.content})
+            content = msg.content if isinstance(msg.content, str) else str(msg.content)
+            history.append({"role": "assistant", "content": content})
 
     logger.info(f"传递 {len(history)} 条历史消息进行LLM情绪分析")
 
     llm = get_llm_client()
-    emotion_result = llm.analyze_emotion(user_message, history)
+    text_message = user_message if isinstance(user_message, str) else str(user_message)
+    emotion_result = llm.analyze_emotion(text_message, history) or {}
 
     if emotion_result.get("emotion_type"):
         state["current_emotion"] = {
@@ -104,7 +113,9 @@ def emotion_recognition_node(
     if emotion_result.get("need_more_info"):
         state["requires_user_input"] = True
         state["next_action"] = "emotion_clarification"
-        clarification_prompt = _generate_clarification_prompt(emotion_result)
+        clarification_prompt = (
+            _generate_clarification_prompt(emotion_result) if emotion_result else ""
+        )
         state["messages"] = list(state["messages"]) + [
             AIMessage(content=clarification_prompt)
         ]

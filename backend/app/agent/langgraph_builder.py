@@ -204,11 +204,3 @@ def create_agent_with_memory():
     checkpointer = MemorySaver()
     return create_agent_graph(checkpointer=checkpointer)
 
-
-def create_threaded_agent():
-    """创建支持多线程的 Agent（生产环境，需要外部持久化）"""
-    from langgraph.checkpoint.postgres import PostgresSaver
-    from app.config import settings
-
-    PostgresSaver.from_conn_string(settings.DATABASE_URL)
-    raise NotImplementedError("生产环境需要配置数据库持久化")

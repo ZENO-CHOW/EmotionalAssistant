@@ -1,6 +1,7 @@
 """
 情绪图片API路由
 """
+
 from fastapi import APIRouter, HTTPException, Query, Depends
 from sqlalchemy.orm import Session
 from typing import Optional, List
@@ -16,10 +17,12 @@ router = APIRouter()
 
 @router.get("/emotion/images")
 async def get_emotion_images(
-    category: Optional[str] = Query(None, description="图片分类: positive/negative/neutral"),
+    category: Optional[str] = Query(
+        None, description="图片分类: positive/negative/neutral"
+    ),
     limit: int = Query(12, ge=1, le=50, description="返回数量"),
     random_select: bool = Query(True, description="是否随机选择"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     """
     获取情绪图片列表
@@ -32,7 +35,7 @@ async def get_emotion_images(
 
         # 按分类筛选
         if category:
-            if category not in ['positive', 'negative', 'neutral']:
+            if category not in ["positive", "negative", "neutral"]:
                 raise HTTPException(status_code=400, detail="无效的分类")
             query = query.filter(EmotionImage.category == category)
 
@@ -40,11 +43,7 @@ async def get_emotion_images(
         all_images = query.all()
 
         if not all_images:
-            return {
-                "success": True,
-                "count": 0,
-                "images": []
-            }
+            return {"success": True, "count": 0, "images": []}
 
         # 随机选择或按顺序选择
         if random_select:
@@ -61,7 +60,7 @@ async def get_emotion_images(
                 "name": img.name,
                 "valence": img.valence,
                 "arousal": img.arousal,
-                "dominance": img.dominance
+                "dominance": img.dominance,
             }
             for img in selected
         ]
@@ -70,7 +69,7 @@ async def get_emotion_images(
             "success": True,
             "count": len(images),
             "category": category,
-            "images": images
+            "images": images,
         }
 
     except HTTPException:
@@ -81,10 +80,7 @@ async def get_emotion_images(
 
 
 @router.post("/emotion/analyze")
-async def analyze_emotion(
-    data: dict,
-    db: Session = Depends(get_db)
-):
+async def analyze_emotion(data: dict, db: Session = Depends(get_db)):
     """
     分析用户选择的图片，识别情绪
 
@@ -99,18 +95,25 @@ async def analyze_emotion(
 
         # 获取选中图片的VAD值
         image_ids = [img.get("imageId") for img in selected_images]
-        images = db.query(EmotionImage).filter(EmotionImage.image_id.in_(image_ids)).all()
+        images = (
+            db.query(EmotionImage).filter(EmotionImage.image_id.in_(image_ids)).all()
+        )
 
         if not images:
             raise HTTPException(status_code=404, detail="未找到图片数据")
 
         # 计算平均VAD值
-        avg_valence = sum(img.valence for img in images) / len(images)
-        avg_arousal = sum(img.arousal for img in images) / len(images)
-        avg_dominance = sum(img.dominance for img in images) / len(images)
+        valence_sum = sum(float(img.valence) for img in images)  # type: ignore[arg-type]
+        arousal_sum = sum(float(img.arousal) for img in images)  # type: ignore[arg-type]
+        dominance_sum = sum(float(img.dominance) for img in images)  # type: ignore[arg-type]
+        avg_valence = valence_sum / len(images)
+        avg_arousal = arousal_sum / len(images)
+        avg_dominance = dominance_sum / len(images)
 
         # 根据VAD映射到情绪类型
-        emotion_result = map_vad_to_emotion(avg_valence, avg_arousal, avg_dominance, intensity)
+        emotion_result = map_vad_to_emotion(
+            avg_valence, avg_arousal, avg_dominance, intensity
+        )
 
         return {
             "success": True,
@@ -118,9 +121,9 @@ async def analyze_emotion(
             "vad": {
                 "valence": round(avg_valence, 2),
                 "arousal": round(avg_arousal, 2),
-                "dominance": round(avg_dominance, 2)
+                "dominance": round(avg_dominance, 2),
             },
-            "intensity": intensity
+            "intensity": intensity,
         }
 
     except HTTPException:
@@ -130,7 +133,9 @@ async def analyze_emotion(
         raise HTTPException(status_code=500, detail=f"情绪分析失败: {str(e)}")
 
 
-def map_vad_to_emotion(valence: float, arousal: float, dominance: float, intensity: int) -> dict:
+def map_vad_to_emotion(
+    valence: float, arousal: float, dominance: float, intensity: int
+) -> dict:
     """
     将VAD值映射到情绪类型
 
@@ -171,7 +176,7 @@ def map_vad_to_emotion(valence: float, arousal: float, dominance: float, intensi
         "emoji": emoji,
         "intensity": intensity,
         "confidence": 0.75,  # 简化版，固定置信度
-        "description": f"看起来你现在可能感到{emotion_label}"
+        "description": f"看起来你现在可能感到{emotion_label}",
     }
 
 
@@ -181,9 +186,15 @@ async def get_image_statistics(db: Session = Depends(get_db)):
     获取图片库统计信息
     """
     try:
-        positive_count = db.query(EmotionImage).filter(EmotionImage.category == 'positive').count()
-        negative_count = db.query(EmotionImage).filter(EmotionImage.category == 'negative').count()
-        neutral_count = db.query(EmotionImage).filter(EmotionImage.category == 'neutral').count()
+        positive_count = (
+            db.query(EmotionImage).filter(EmotionImage.category == "positive").count()
+        )
+        negative_count = (
+            db.query(EmotionImage).filter(EmotionImage.category == "negative").count()
+        )
+        neutral_count = (
+            db.query(EmotionImage).filter(EmotionImage.category == "neutral").count()
+        )
 
         return {
             "success": True,
@@ -191,8 +202,8 @@ async def get_image_statistics(db: Session = Depends(get_db)):
             "categories": {
                 "positive": positive_count,
                 "negative": negative_count,
-                "neutral": neutral_count
-            }
+                "neutral": neutral_count,
+            },
         }
 
     except Exception as e:

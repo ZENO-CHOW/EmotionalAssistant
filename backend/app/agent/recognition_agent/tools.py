@@ -27,7 +27,7 @@ class CrisisDetector:
 
     CRISIS_INTENSITY_THRESHOLD = 8
 
-    def __init__(self, intensity_threshold: int = None):
+    def __init__(self, intensity_threshold: Optional[int] = None):
         self.intensity_threshold = (
             intensity_threshold or self.CRISIS_INTENSITY_THRESHOLD
         )

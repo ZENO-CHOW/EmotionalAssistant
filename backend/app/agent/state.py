@@ -24,78 +24,50 @@ class AgentState(TypedDict):
     user_id: int
 
     # ========== 情绪状态 ==========
-    current_emotion: Optional[Dict]  # {
-    #   "type": "anxiety",
-    #   "intensity": 7,
-    #   "confidence": 0.85,
-    #   "reason": "用户表达了担忧和不安"
-    # }
-    intensity: Optional[int]  # 用户选择的情绪强度 (0-10)
+    current_emotion: Optional[Dict]
+    intensity: Optional[int]
+    before_intensity: Optional[int]
+    after_intensity: Optional[int]
+    effectiveness: Optional[str]
+
+    # ========== 身体感知 ==========
+    body_sensation: Optional[Dict]
+
+    # ========== 图片识别 ==========
+    pending_image_urls: Optional[List[str]]
+    image_recognition_attempts: int
+    image_emotion: Optional[Dict]
+
+    # ========== 识别AGENT输出 ==========
+    identified_emotion: Optional[Dict]
+    user_intention: Optional[str]
+    needs_clarification: bool
+    clarification_prompt: Optional[str]
 
     # ========== 危机检测 ==========
     is_crisis: bool
-    risk_level: str  # low/medium/high/critical
-    crisis_trigger: Optional[str]  # high_intensity/keywords/repeated_crisis
-
-    # ========== 技能系统 ==========
-    recommended_skill: Optional[Dict]  # {
-    #   "name": "正念呼吸",
-    #   "category": "mindfulness",
-    #   "reason": "...",
-    #   "introduction": "..."
-    # }
-    skill_step: int  # -1=未开始, 0=等待确认, >0=步骤进行中
-    skill_history: List[Dict]  # [{"skill": "...", "effectiveness": "..."}]
-
-    # ========== 效果评估 ==========
-    before_intensity: Optional[int]
-    after_intensity: Optional[int]
-    effectiveness: Optional[str]  # effective/ineffective/neutral
-
-    # ========== 身体感知 ==========
-    body_sensation: Optional[Dict]  # {
-    #   "selected_parts": ["head", "neck", "chest"],
-    #   "part_names": {"head": "头部", "neck": "颈部", ...}
-    # }
-
-    # ========== 图片识别 ==========
-    pending_image_urls: Optional[List[str]]  # 待识别的图片URL列表
-    image_recognition_attempts: int  # 图片识别尝试次数
-    image_emotion: Optional[Dict]  # {
-    #   "type": "anxiety",
-    #   "confidence": 0.85,
-    #   "reason": "...",
-    #   "source": "image_recognition"
-    # }
-
-    # ========== 识别AGENT输出 ==========
-    identified_emotion: Optional[Dict]  # {
-    #   "type": "anxiety",
-    #   "intensity": 7,
-    #   "confidence": 0.85,
-    #   "reason": "..."
-    # }
-    user_intention: Optional[str]  # immediate_help/skill_learning/casual_talk
+    risk_level: str
+    crisis_trigger: Optional[str]
     emergency_detected: bool
     emergency_type: Optional[str]
     emergency_response: Optional[str]
     emergency_keywords: List[Dict]
-    needs_clarification: bool
-    clarification_prompt: Optional[str]
 
-    # ========== 技能推荐AGENT输出 ==========
+    # ========== 技能系统 ==========
+    recommended_skill: Optional[Dict]
+    skill_step: int
+    skill_history: List[Dict]
     skill_confidence: Optional[float]
 
     # ========== 干预引导AGENT输出 ==========
-    guidance_state: Optional[Dict]  # {
-    #   "current_step": 2,
-    #   "total_steps": 4,
-    #   "completed": False
-    # }
+    guidance_state: Optional[Dict]
 
     # ========== 控制流 ==========
-    current_agent: Optional[str]  # recognition/recommendation/intervention
+    current_agent: Optional[str]
     latest_message: Optional[str]
+    should_end: bool
+    requires_user_input: bool
+    next_action: Optional[str]
 
     # ========== 会话总结 ==========
     session_summary: Optional[str]

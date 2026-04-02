@@ -10,10 +10,6 @@ from app.agent.state import AgentState
 from app.core.llm_client import get_llm_client
 from app.dbt.skills import get_skill_info, get_skill_steps
 
-from ..state import AgentState
-from ...core.llm_client import get_llm_client
-from ...dbt.skills import SKILLS_DATABASE
-
 
 def skill_guidance_node(state: AgentState, db: Optional[Session] = None) -> AgentState:
     """
@@ -26,11 +22,14 @@ def skill_guidance_node(state: AgentState, db: Optional[Session] = None) -> Agen
     if not skill:
         return state
 
-    skill_name = skill.get("name")
+    skill_name = skill.get("name") or ""
     skill_step = state.get("skill_step", -1)
 
-    skill_info = get_skill_info(skill_name)
-    steps = get_skill_steps(skill_name)
+    if not skill_name:
+        return state
+
+    skill_info = get_skill_info(skill_name) or {}
+    steps = get_skill_steps(skill_name) or []
 
     if skill_step == 0:
         return _handle_skill_confirmation(state, skill_info, steps)
@@ -83,7 +82,8 @@ def _handle_skill_step(
     user_context = ""
     for msg in state["messages"][-3:]:
         if isinstance(msg, HumanMessage):
-            user_context = msg.content
+            content = msg.content
+            user_context = content if isinstance(content, str) else str(content)
             break
 
     llm = get_llm_client()
@@ -107,14 +107,15 @@ def _handle_skill_step(
         state["requires_user_input"] = True
 
     return state
-    
+
+
 def _generate_guidance_message(
     skill_name: str,
     step_number: int,
     total_steps: int,
     step_info: dict,
     is_first_step: bool,
-    is_last_step: bool
+    is_last_step: bool,
 ) -> str:
     """
     生成引导话术（使用LLM生成更自然的引导）
@@ -142,11 +143,11 @@ def _generate_guidance_message(
 
 当前是第{step_number}/{total_steps}步：{step_title}
 步骤说明：{step_description}
-{f'具体指导：{step_guidance}' if step_guidance else ''}
-{f'预计时间：{step_duration}' if step_duration else ''}
+{f"具体指导：{step_guidance}" if step_guidance else ""}
+{f"预计时间：{step_duration}" if step_duration else ""}
 
 请生成一段引导话术，要求：
-1. {'先说"很好，我们开始吧😊"' if is_first_step else ''}
+1. {'先说"很好，我们开始吧😊"' if is_first_step else ""}
 2. 清楚地说明这一步要做什么
 3. 语气温柔、鼓励
 4. {'结尾说"完成后告诉我你现在的感觉吧💙"' if is_last_step else '结尾说"完成后回复我，我会告诉你下一步～"'}
@@ -156,10 +157,7 @@ def _generate_guidance_message(
     try:
         messages = [{"role": "user", "content": f"请引导我完成第{step_number}步"}]
         llm_response = llm_client.chat(
-            messages,
-            system_prompt=system_prompt,
-            temperature=0.7,
-            max_tokens=200
+            messages, system_prompt=system_prompt, temperature=0.7, max_tokens=200
         )
 
         if llm_response:
@@ -167,6 +165,7 @@ def _generate_guidance_message(
 
     except Exception as e:
         import logging
+
         logger = logging.getLogger(__name__)
         logger.warning(f"LLM生成引导话术失败，使用模板: {str(e)}")
 

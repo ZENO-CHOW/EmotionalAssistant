@@ -25,12 +25,13 @@ def crisis_detection_node(
         return state
 
     detector = CrisisDetector(db_session=db)
-    emotion = state["current_emotion"]
+    emotion = state.get("current_emotion") or {}
 
     user_message = ""
     for msg in reversed(state["messages"]):
         if isinstance(msg, HumanMessage):
-            user_message = msg.content
+            content = msg.content
+            user_message = content if isinstance(content, str) else str(content)
             break
 
     crisis_result = detector.detect_crisis(
@@ -41,7 +42,7 @@ def crisis_detection_node(
     )
 
     if crisis_result.get("is_crisis") or emotion.get("intensity", 0) >= 7:
-        llm_confirm = _llm_crisis_confirm(user_message, emotion)
+        llm_confirm = _llm_crisis_confirm(user_message, emotion) or {}
         if llm_confirm.get("is_crisis"):
             crisis_result["is_crisis"] = True
             crisis_result["risk_level"] = llm_confirm.get(
@@ -120,7 +121,7 @@ def _llm_crisis_confirm(user_message: str, emotion: Dict) -> Dict:
 - 宁可误报也不要漏报"""
 
     try:
-        result = llm.analyze_emotion(prompt, [])
+        result = llm.analyze_emotion(prompt, []) or {}
         return result
     except Exception:
         return {"is_crisis": False, "risk_level": "low"}

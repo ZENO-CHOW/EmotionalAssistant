@@ -87,9 +87,9 @@ def image_recognition_node(
 
     logger.info(f"成功识别 {len(emotion_results)} 张图片")
 
-    emotion_counts = {}
-    total_confidence = {}
-    all_reasons = []
+    emotion_counts: Dict[str, int] = {}
+    total_confidence: Dict[str, float] = {}
+    all_reasons: list[str] = []
 
     for result in emotion_results:
         emotion_type = result["type"]
@@ -117,13 +117,12 @@ def image_recognition_node(
     }
     state["image_emotion"] = img_emotion
 
-    if not state.get("current_emotion"):
-        state["current_emotion"] = {}
-    current_emotion = state["current_emotion"]
+    current_emotion: Dict[str, Any] = state.get("current_emotion") or {}
     current_emotion["type"] = img_emotion.get("type", "calm")
     current_emotion["confidence"] = img_emotion.get("confidence", 0.5)
     current_emotion["reason"] = img_emotion.get("reason", "")
     current_emotion["source"] = "image"
+    state["current_emotion"] = current_emotion
 
     state["pending_image_urls"] = None
     state["image_recognition_attempts"] = 0

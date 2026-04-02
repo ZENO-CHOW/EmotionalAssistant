@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.database.connection import get_db
 from app.database.repositories.admin_repo import AdminRepository
@@ -69,7 +69,7 @@ async def admin_login(request: AdminLoginRequest, db: Session = Depends(get_db))
                 detail={"code": 401, "message": "管理员账号或密码错误"},
             )
 
-        if not auth_tools.verify_password(request.password, admin.password_hash):
+        if not auth_tools.verify_password(request.password, str(admin.password_hash)):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail={"code": 401, "message": "管理员账号或密码错误"},
@@ -301,8 +301,6 @@ async def get_user_list(
             status=status, keyword=keyword, page=page, page_size=page_size
         )
 
-        from datetime import datetime
-
         user_list = []
         for user in users:
             emotion_count = user_repo.get_user_diary_count(user.id)
@@ -345,7 +343,7 @@ async def get_user_list(
     except Exception as e:
         logger.error(f"获取用户列表失败: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=500,
             detail={"code": 500, "message": "获取用户列表失败"},
         )
 
@@ -356,7 +354,9 @@ def _format_relative_time(dt: datetime) -> str:
     :param dt: datetime 对象
     :return: 相对时间字符串
     """
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
     diff = now - dt
     diff_seconds = int(diff.total_seconds())
 
@@ -532,21 +532,24 @@ async def get_recent_crisis_events(
             level_map = {"high": "high", "medium": "medium", "low": "low"}
             level_icon_map = {"high": "🔴", "medium": "🟡", "low": "🟢"}
             level_text_map = {"high": "高危", "medium": "中危", "low": "低危"}
+            risk_level_str = (
+                str(crisis.risk_level) if crisis.risk_level is not None else "low"
+            )
 
             crisis_list.append(
                 {
                     "id": crisis.id,
-                    "level": level_map.get(crisis.risk_level, "low"),
-                    "levelIcon": level_icon_map.get(crisis.risk_level, "🟢"),
-                    "levelText": level_text_map.get(crisis.risk_level, "低危"),
+                    "level": level_map.get(risk_level_str, "low"),
+                    "levelIcon": level_icon_map.get(risk_level_str, "🟢"),
+                    "levelText": level_text_map.get(risk_level_str, "低危"),
                     "userName": user.nickname or user.username
-                    if user
+                    if user is not None
                     else f"用户{crisis.user_id}",
                     "userId": crisis.user_id,
                     "description": crisis.trigger_reason,
                     "emotionIntensity": crisis.emotion_intensity,
                     "time": _format_relative_time(crisis.created_at),
-                    "handled": crisis.status != "pending",
+                    "handled": str(crisis.status) != "pending",
                 }
             )
 
@@ -554,6 +557,6 @@ async def get_recent_crisis_events(
     except Exception as e:
         logger.error(f"获取最近危机事件失败: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=500,
             detail={"code": 500, "message": "获取危机事件失败"},
         )

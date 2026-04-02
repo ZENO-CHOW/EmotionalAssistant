@@ -77,7 +77,10 @@ class AuthTools:
         payload = self.decode_access_token(token)
         if payload and payload.get("type") == "user":
             try:
-                return int(payload.get("sub"))
+                sub = payload.get("sub")
+                if sub is not None:
+                    return int(sub)
+                return None
             except (ValueError, TypeError):
                 return None
         return None
@@ -87,7 +90,10 @@ class AuthTools:
         payload = self.decode_access_token(token)
         if payload and payload.get("type") == "admin":
             try:
-                return int(payload.get("sub"))
+                sub = payload.get("sub")
+                if sub is not None:
+                    return int(sub)
+                return None
             except (ValueError, TypeError):
                 return None
         return None

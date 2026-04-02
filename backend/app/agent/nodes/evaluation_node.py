@@ -21,8 +21,8 @@ def effectiveness_evaluation_node(
     2. 引导用户评估训练后感受
     3. 计算效果并记录
     """
-    emotion = state.get("current_emotion", {})
-    before_intensity = emotion.get("intensity", 5)
+    emotion = state.get("current_emotion") or {}
+    before_intensity = emotion.get("intensity", 5) or 5
 
     if state.get("before_intensity") is None:
         state["before_intensity"] = before_intensity
@@ -46,8 +46,10 @@ def effectiveness_evaluation_node(
     if after_intensity is None:
         for msg in reversed(state["messages"]):
             if isinstance(msg, HumanMessage):
+                content = msg.content
                 try:
-                    after_intensity = int(msg.content.strip())
+                    text_content = content if isinstance(content, str) else str(content)
+                    after_intensity = int(text_content.strip())
                     state["after_intensity"] = after_intensity
                 except ValueError:
                     after_intensity = before_intensity
@@ -55,11 +57,12 @@ def effectiveness_evaluation_node(
                 break
 
     evaluator = Evaluator()
-    effectiveness = evaluator.evaluate(
-        before_intensity=state["before_intensity"],
-        after_intensity=state.get("after_intensity", before_intensity),
-        emotion_type=emotion.get("type"),
-        skill_name=state.get("recommended_skill", {}).get("name"),
+    recommended_skill = state.get("recommended_skill") or {}
+    before_val = state.get("before_intensity") or before_intensity
+    after_val = state.get("after_intensity") or before_intensity
+    effectiveness = evaluator.evaluate_skill_effectiveness(
+        before_intensity=before_val,
+        after_intensity=after_val,
     )
 
     state["effectiveness"] = effectiveness
@@ -69,16 +72,13 @@ def effectiveness_evaluation_node(
 
     state["messages"] = list(state["messages"]) + [AIMessage(content=feedback)]
 
-    improvement = state["before_intensity"] - state.get(
-        "after_intensity", state["before_intensity"]
-    )
+    before_int = state.get("before_intensity") or 5
+    after_int = state.get("after_intensity")
+    improvement = before_int - after_int if after_int is not None else 0
 
-    if improvement <= 0 and state["before_intensity"] >= 7:
+    if improvement <= 0 and before_int >= 7:
         state["recommended_skill"] = None
         state["should_end"] = False
-    elif improvement >= 2:
-        state["should_end"] = True
-        state["next_action"] = "generate_summary"
     else:
         state["should_end"] = True
         state["next_action"] = "generate_summary"
@@ -88,9 +88,12 @@ def effectiveness_evaluation_node(
 
 def _generate_feedback(state: AgentState) -> str:
     """生成效果反馈"""
-    effectiveness = state.get("effectiveness", "neutral")
-    improvement = state.get("before_intensity", 5) - state.get("after_intensity", 5)
-    skill_name = state.get("recommended_skill", {}).get("name", "")
+    effectiveness = state.get("effectiveness") or "neutral"
+    before_int = state.get("before_intensity") or 5
+    after_int = state.get("after_intensity") or 5
+    improvement = before_int - after_int
+    recommended_skill = state.get("recommended_skill") or {}
+    skill_name = recommended_skill.get("name") or ""
 
     feedback_map = {
         "effective": f"很高兴这个练习对你有帮助！通过{skill_name}，你成功降低了情绪强度。这说明你已经掌握了这项技能的核心要点。",

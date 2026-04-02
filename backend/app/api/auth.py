@@ -4,7 +4,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, EmailStr, Field, validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, ValidationInfo
 from typing import Optional
 import logging
 
@@ -36,9 +36,11 @@ class RegisterRequest(BaseModel):
     phone: Optional[str] = Field(None, max_length=20, description="手机号")
     school: Optional[str] = Field(None, max_length=100, description="学校")
 
-    @validator("confirmPassword")
-    def passwords_match(cls, v, values, **kwargs):
-        if "password" in values and v != values["password"]:
+    @field_validator("confirmPassword")
+    @classmethod
+    def passwords_match(cls, v: str, info: ValidationInfo) -> str:
+        password = info.data.get("password")
+        if password is not None and v != password:
             raise ValueError("两次密码不一致")
         return v
 
@@ -106,7 +108,7 @@ async def login(request: LoginRequest, db: Session = Depends(get_db)):
                 detail={"code": 401, "message": "用户名或密码错误"},
             )
 
-        if not auth_tools.verify_password(request.password, user.password_hash):
+        if not auth_tools.verify_password(request.password, str(user.password_hash)):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail={"code": 401, "message": "用户名或密码错误"},
@@ -266,6 +268,11 @@ async def update_user_info(
         if updates:
             user_repo.update_user(current_user.id, updates)
             user = user_repo.get_by_id(current_user.id)
+            if user is None:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail={"code": 500, "message": "更新失败，用户不存在"},
+                )
         else:
             user = current_user
 
@@ -305,7 +312,7 @@ async def change_password(
     """
     try:
         if not auth_tools.verify_password(
-            request.currentPassword, current_user.password_hash
+            request.currentPassword, str(current_user.password_hash)
         ):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,

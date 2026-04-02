@@ -86,7 +86,7 @@ async def get_current_user(
             detail={"code": 404, "message": "用户不存在"},
         )
 
-    if user.status != "active":
+    if str(user.status) != "active":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={"code": 403, "message": "用户账号已被禁用"},
@@ -120,6 +120,11 @@ async def get_current_admin_id(
             detail={"code": 401, "message": "未提供认证token"},
         )
 
+    if token is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"code": 401, "message": "未提供认证token"},
+        )
     admin_id = auth_tools.extract_admin_id_from_token(token)
     if admin_id is None:
         raise HTTPException(
@@ -156,6 +161,11 @@ async def get_current_admin(
             detail={"code": 401, "message": "未提供认证token"},
         )
 
+    if token is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"code": 401, "message": "未提供认证token"},
+        )
     admin_id = auth_tools.extract_admin_id_from_token(token)
     if admin_id is None:
         raise HTTPException(
@@ -172,7 +182,7 @@ async def get_current_admin(
             detail={"code": 404, "message": "管理员不存在"},
         )
 
-    if admin.status != "active":
+    if str(admin.status) != "active":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail={"code": 403, "message": "管理员账号已被禁用"},
