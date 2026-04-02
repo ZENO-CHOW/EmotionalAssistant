@@ -1,0 +1,236 @@
+/* 全局样式重置 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto",
+               "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* ========== 动态风背景 ========== */
+
+/* 风波纹动画 */
+@keyframes waveFlow {
+  0% {
+    left: -100%;
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    left: 100%;
+    opacity: 0;
+  }
+}
+
+/* 流动线条动画 */
+@keyframes windFlow {
+  0% {
+    left: -100%;
+    opacity: 0;
+    width: 200px;
+  }
+  10% {
+    opacity: 0.8;
+  }
+  50% {
+    opacity: 1;
+    width: 300px;
+  }
+  90% {
+    opacity: 0.6;
+  }
+  100% {
+    left: 120%;
+    opacity: 0;
+    width: 250px;
+  }
+}
+
+/* 粒子飘动动画 */
+@keyframes particleDrift {
+  0% {
+    left: -20px;
+    opacity: 0;
+    transform: translateY(0) rotate(0deg) scale(0.8);
+  }
+  10% {
+    opacity: 0.9;
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(var(--wave)) rotate(180deg) scale(1.2);
+  }
+  90% {
+    opacity: 0.7;
+  }
+  100% {
+    left: 110%;
+    opacity: 0;
+    transform: translateY(calc(var(--wave) * -1)) rotate(360deg) scale(0.8);
+  }
+}
+
+/* ========== 风背景容器 ========== */
+.wind-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg,
+    #E8F5E9 0%,
+    #C8E6C9 30%,
+    #A5D6A7 60%,
+    rgba(46, 125, 50, 0.76) 100%
+  );
+  overflow: hidden;
+  z-index: -1;
+}
+
+/* 大型风波纹 - 横向扫过 */
+.wind-wave {
+  position: absolute;
+  width: 100%;
+  height: 150px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.15) 30%,
+    rgba(255, 255, 255, 0.25) 50%,
+    rgba(255, 255, 255, 0.15) 70%,
+    transparent 100%
+  );
+  opacity: 0;
+  animation: waveFlow var(--duration) ease-in-out infinite;
+  animation-delay: var(--delay);
+  filter: blur(30px);
+}
+
+.wind-wave:nth-child(1) { top: 10%; --duration: 15s; --delay: 0s; }
+.wind-wave:nth-child(2) { top: 35%; --duration: 20s; --delay: 5s; }
+.wind-wave:nth-child(3) { top: 60%; --duration: 18s; --delay: 10s; }
+
+/* 流动线条 */
+.wind-line {
+  position: absolute;
+  height: 2px;
+  background: linear-gradient(90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.6) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  opacity: 0;
+  animation: windFlow var(--duration) ease-in-out infinite;
+  animation-delay: var(--delay);
+  filter: blur(1px);
+}
+
+.wind-line:nth-child(4) { top: 20%; --duration: 7s; --delay: 0s; }
+.wind-line:nth-child(5) { top: 35%; --duration: 9s; --delay: 1s; }
+.wind-line:nth-child(6) { top: 50%; --duration: 8s; --delay: 3s; }
+.wind-line:nth-child(7) { top: 65%; --duration: 10s; --delay: 2s; }
+.wind-line:nth-child(8) { top: 80%; --duration: 11s; --delay: 4s; }
+
+/* 横向飘动粒子（叶片效果） */
+.wind-particle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: radial-gradient(circle,
+    rgba(255, 255, 255, 0.9) 0%,
+    rgba(255, 255, 255, 0.3) 100%
+  );
+  border-radius: 50%;
+  left: -20px;
+  opacity: 0;
+  animation: particleDrift var(--duration) ease-in-out infinite;
+  animation-delay: var(--delay);
+  filter: blur(0.5px);
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.5);
+}
+
+.wind-particle:nth-child(9) { top: 15%; --duration: 12s; --delay: 0s; --wave: 30px; }
+.wind-particle:nth-child(10) { top: 30%; --duration: 10s; --delay: 2s; --wave: -40px; }
+.wind-particle:nth-child(11) { top: 45%; --duration: 14s; --delay: 4s; --wave: 50px; }
+.wind-particle:nth-child(12) { top: 60%; --duration: 11s; --delay: 1s; --wave: -35px; }
+.wind-particle:nth-child(13) { top: 75%; --duration: 13s; --delay: 3s; --wave: 45px; }
+.wind-particle:nth-child(14) { top: 90%; --duration: 15s; --delay: 5s; --wave: -25px; }
+
+/* 森林绿主题色 */
+:root {
+  --color-primary: #2E7D32;
+  --color-primary-light: #4CAF50;
+  --color-primary-lighter: #81C784;
+  --color-bg-light: #E8F5E9;
+  --color-bg-lighter: #F1F8E9;
+  --color-text-dark: #1B5E20;
+  --color-text-gray: #666;
+  --color-white: #ffffff;
+  --color-border: rgba(46, 125, 50, 0.2);
+
+  /* 液态玻璃效果 */
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.3);
+  --glass-shadow: 0 8px 32px rgba(46, 125, 50, 0.1);
+
+  /* 间距 */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+
+  /* 圆角 */
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-full: 999px;
+}
+
+/* 滚动条样式 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg-lighter);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-primary-lighter);
+  border-radius: var(--radius-sm);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary);
+}
+
+/* 通用工具类 */
+.text-center {
+  text-align: center;
+}
+
+.flex-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.glass-effect {
+  background: var(--glass-bg);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}

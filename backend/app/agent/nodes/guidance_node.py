@@ -1,0 +1,195 @@
+"""
+技能引导节点
+引导用户练习 DBT 技能（LLM 动态生成话术）
+"""
+
+from typing import Dict, Any, Optional
+from sqlalchemy.orm import Session
+from langchain_core.messages import AIMessage, HumanMessage
+from app.agent.state import AgentState
+from app.core.llm_client import get_llm_client
+from app.dbt.skills import get_skill_info, get_skill_steps
+
+from ..state import AgentState
+from ...core.llm_client import get_llm_client
+from ...dbt.skills import SKILLS_DATABASE
+
+
+def skill_guidance_node(state: AgentState, db: Optional[Session] = None) -> AgentState:
+    """
+    技能引导节点
+
+    1. 根据当前步骤生成引导话术
+    2. 逐步引导用户完成技能练习
+    """
+    skill = state.get("recommended_skill")
+    if not skill:
+        return state
+
+    skill_name = skill.get("name")
+    skill_step = state.get("skill_step", -1)
+
+    skill_info = get_skill_info(skill_name)
+    steps = get_skill_steps(skill_name)
+
+    if skill_step == 0:
+        return _handle_skill_confirmation(state, skill_info, steps)
+
+    if skill_step > 0 and skill_step <= len(steps):
+        return _handle_skill_step(state, skill_info, steps, skill_step)
+
+    return state
+
+
+def _handle_skill_confirmation(
+    state: AgentState, skill_info: Dict, steps: list
+) -> AgentState:
+    """处理技能开始前的确认"""
+    skill_name = skill_info.get("name", "")
+    introduction = skill_info.get("introduction", "")
+
+    confirmation_prompt = f"""请你邀请用户练习「{skill_name}」。
+
+技能简介：{introduction}
+预计用时：{skill_info.get("estimated_duration", "5-10分钟")}
+
+要求：
+1. 简短说明这个练习做什么
+2. 告知需要的条件（如安静环境）
+3. 询问用户是否方便现在练习
+4. 语言温暖、不强迫
+
+直接生成邀请语，不需要JSON格式。"""
+
+    llm = get_llm_client()
+    response = llm.generate_response(
+        system_prompt=confirmation_prompt, user_message="生成邀请语"
+    )
+
+    state["messages"] = list(state["messages"]) + [AIMessage(content=response)]
+    state["requires_user_input"] = True
+    state["next_action"] = "wait_skill_confirmation"
+
+    return state
+
+
+def _handle_skill_step(
+    state: AgentState, skill_info: Dict, steps: list, step_num: int
+) -> AgentState:
+    """处理技能步骤引导"""
+    skill_name = skill_info.get("name", "")
+    step_content = steps[step_num - 1] if step_num <= len(steps) else ""
+
+    user_context = ""
+    for msg in state["messages"][-3:]:
+        if isinstance(msg, HumanMessage):
+            user_context = msg.content
+            break
+
+    llm = get_llm_client()
+    guidance = llm.generate_guidance(
+        skill_name=skill_name,
+        skill_category=skill_info.get("category", ""),
+        total_steps=len(steps),
+        current_step=step_num,
+        step_content=step_content,
+        user_context=user_context,
+    )
+
+    state["messages"] = list(state["messages"]) + [AIMessage(content=guidance)]
+
+    if step_num < len(steps):
+        state["next_action"] = "wait_step_completion"
+        state["requires_user_input"] = True
+    else:
+        state["skill_step"] = -1
+        state["next_action"] = "skill_completed"
+        state["requires_user_input"] = True
+
+    return state
+    
+def _generate_guidance_message(
+    skill_name: str,
+    step_number: int,
+    total_steps: int,
+    step_info: dict,
+    is_first_step: bool,
+    is_last_step: bool
+) -> str:
+    """
+    生成引导话术（使用LLM生成更自然的引导）
+
+    Args:
+        skill_name: 技能名称
+        step_number: 当前步骤编号
+        total_steps: 总步骤数
+        step_info: 步骤信息
+        is_first_step: 是否第一步
+        is_last_step: 是否最后一步
+
+    Returns:
+        引导话术文本
+    """
+    llm_client = get_llm_client()
+
+    step_title = step_info.get("title", "")
+    step_description = step_info.get("description", "")
+    step_duration = step_info.get("duration", "")
+    step_guidance = step_info.get("guidance", "")
+
+    # 尝试使用LLM生成更个性化的引导话术
+    system_prompt = f"""你是一个温柔、耐心的DBT技能引导师。你正在带领用户完成「{skill_name}」练习。
+
+当前是第{step_number}/{total_steps}步：{step_title}
+步骤说明：{step_description}
+{f'具体指导：{step_guidance}' if step_guidance else ''}
+{f'预计时间：{step_duration}' if step_duration else ''}
+
+请生成一段引导话术，要求：
+1. {'先说"很好，我们开始吧😊"' if is_first_step else ''}
+2. 清楚地说明这一步要做什么
+3. 语气温柔、鼓励
+4. {'结尾说"完成后告诉我你现在的感觉吧💙"' if is_last_step else '结尾说"完成后回复我，我会告诉你下一步～"'}
+5. 控制在100字以内
+"""
+
+    try:
+        messages = [{"role": "user", "content": f"请引导我完成第{step_number}步"}]
+        llm_response = llm_client.chat(
+            messages,
+            system_prompt=system_prompt,
+            temperature=0.7,
+            max_tokens=200
+        )
+
+        if llm_response:
+            return llm_response
+
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"LLM生成引导话术失败，使用模板: {str(e)}")
+
+    # 回退到模板消息
+    # 开头
+    if is_first_step:
+        opening = f"很好，我们开始吧😊\n\n"
+    else:
+        opening = ""
+
+    # 步骤说明
+    step_indicator = f"第{step_number}步/{total_steps}步：{step_title}"
+
+    if step_duration:
+        step_indicator += f"（{step_duration}）"
+
+    # 具体指令
+    instruction = f"\n{step_description}"
+
+    # 结尾
+    if is_last_step:
+        closing = "\n\n完成后告诉我你现在的感觉吧💙"
+    else:
+        closing = "\n\n完成后回复我，我会告诉你下一步～"
+
+    return opening + step_indicator + instruction + closing
