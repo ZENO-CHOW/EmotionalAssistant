@@ -4,7 +4,7 @@
 
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_, desc
-from typing import Optional, List, Tuple, Dict
+from typing import Optional, List, Tuple, Dict, Any
 from datetime import datetime, date, timedelta
 import json
 import uuid
@@ -66,7 +66,9 @@ class DiaryRepository:
 
         return diary_id
 
-    def get_diary(self, diary_id: str, user_id: int = None) -> Optional[EmotionDiary]:
+    def get_diary(
+        self, diary_id: str, user_id: Optional[int] = None
+    ) -> Optional[EmotionDiary]:
         """
         获取日记详情
         :param diary_id: 日记ID
@@ -107,7 +109,7 @@ class DiaryRepository:
             if value is not None and hasattr(diary, key):
                 setattr(diary, key, value)
 
-        diary.updated_at = datetime.now()
+        diary.updated_at = datetime.now()  # type: ignore
         self.db.commit()
         return True
 
@@ -127,7 +129,11 @@ class DiaryRepository:
         return True
 
     def list_diaries(
-        self, user_id: int, filters: dict = None, page: int = 1, page_size: int = 20
+        self,
+        user_id: int,
+        filters: Optional[Dict[str, Any]] = None,
+        page: int = 1,
+        page_size: int = 20,
     ) -> Tuple[List[EmotionDiary], int]:
         """
         查询日记列表
@@ -162,7 +168,7 @@ class DiaryRepository:
         return diaries, total
 
     def get_today_diary(
-        self, user_id: int, diary_date: str = None
+        self, user_id: int, diary_date: Optional[str] = None
     ) -> Optional[EmotionDiary]:
         """
         获取指定日期的日记
@@ -239,7 +245,10 @@ class DiaryRepository:
         return continuous_days
 
     def get_emotion_distribution(
-        self, user_id: int, start_date: str = None, end_date: str = None
+        self,
+        user_id: int,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
     ) -> Dict[str, int]:
         """
         统计情绪分布
@@ -281,7 +290,10 @@ class DiaryRepository:
         return distribution
 
     def get_average_intensity(
-        self, user_id: int, start_date: str = None, end_date: str = None
+        self,
+        user_id: int,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
     ) -> float:
         """
         计算平均情绪强度
@@ -365,7 +377,7 @@ class DiaryRepository:
         return self.db.query(EmotionDiary).count()
 
     def get_global_emotion_distribution(
-        self, start_date: str = None, end_date: str = None
+        self, start_date: Optional[str] = None, end_date: Optional[str] = None
     ) -> List[Dict]:
         """
         统计全局情绪分布（所有用户）

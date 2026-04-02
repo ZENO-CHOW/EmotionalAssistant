@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class BusinessException(Exception):
     """业务异常基类"""
 
-    def __init__(self, code: int, message: str, details: str = None):
+    def __init__(self, code: int, message: str, details: Optional[str] = None):
         self.code = code
         self.message = message
         self.details = details
@@ -26,28 +26,28 @@ class BusinessException(Exception):
 class DatabaseException(BusinessException):
     """数据库异常"""
 
-    def __init__(self, message: str, details: str = None):
+    def __init__(self, message: str, details: Optional[str] = None):
         super().__init__(500, message, details)
 
 
 class ValidationException(BusinessException):
     """数据验证异常"""
 
-    def __init__(self, message: str, details: str = None):
+    def __init__(self, message: str, details: Optional[str] = None):
         super().__init__(400, message, details)
 
 
 class NotFoundException(BusinessException):
     """资源不存在异常"""
 
-    def __init__(self, message: str = "资源不存在", details: str = None):
+    def __init__(self, message: str = "资源不存在", details: Optional[str] = None):
         super().__init__(404, message, details)
 
 
 class ConflictException(BusinessException):
     """资源冲突异常"""
 
-    def __init__(self, message: str = "资源冲突", details: str = None):
+    def __init__(self, message: str = "资源冲突", details: Optional[str] = None):
         super().__init__(409, message, details)
 
 

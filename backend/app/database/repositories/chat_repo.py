@@ -4,7 +4,7 @@
 
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, and_, func
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
 import json
 import uuid
@@ -72,7 +72,7 @@ class ChatRepository:
         role: str,
         content: str,
         message_type: str = "text",
-        metadata: dict = None,
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> int:
         """保存消息"""
         metadata_json = json.dumps(metadata, ensure_ascii=False) if metadata else None
@@ -87,7 +87,7 @@ class ChatRepository:
         self.db.add(message)
         self.db.commit()
         self.db.refresh(message)
-        return message.id
+        return int(message.id)  # type: ignore
 
     def get_messages(self, session_id: str, limit: int = 20) -> List[ChatMessage]:
         """获取会话消息"""
@@ -123,10 +123,10 @@ class ChatRepository:
     def get_agent_state(self, session_id: str) -> Optional[dict]:
         """获取会话的多AGENT状态"""
         session = self.get_session(session_id)
-        if not session or not session.agent_state:
+        if not session or session.agent_state is None:  # type: ignore
             return None
         try:
-            return json.loads(session.agent_state)
+            return json.loads(str(session.agent_state))  # type: ignore
         except (json.JSONDecodeError, TypeError):
             return None
 
@@ -137,7 +137,7 @@ class ChatRepository:
             return False
 
         try:
-            session.agent_state = json.dumps(state, ensure_ascii=False)
+            session.agent_state = json.dumps(state, ensure_ascii=False)  # type: ignore
             self.db.commit()
             return True
         except Exception:

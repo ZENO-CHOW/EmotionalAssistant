@@ -3,7 +3,7 @@
 """
 
 from sqlalchemy.orm import Session
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 import json
 import uuid
 
@@ -49,14 +49,14 @@ class CrisisRepository:
         return self.db.query(CrisisEvent).filter(CrisisEvent.id == event_id).first()
 
     def update_crisis_status(
-        self, event_id: str, status: str, updates: dict = None
+        self, event_id: str, status: str, updates: Optional[Dict[str, Any]] = None
     ) -> bool:
         """更新危机事件状态"""
         event = self.get_crisis_event(event_id)
         if not event:
             return False
 
-        event.status = status
+        event.status = status  # type: ignore
         if updates:
             for key, value in updates.items():
                 if hasattr(event, key):
@@ -81,7 +81,7 @@ class CrisisRepository:
         )
 
     def list_recent_crisis_events(
-        self, limit: int = 10, status: str = None
+        self, limit: int = 10, status: Optional[str] = None
     ) -> List[CrisisEvent]:
         """
         获取最近的危机事件列表
