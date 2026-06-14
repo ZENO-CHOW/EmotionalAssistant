@@ -290,7 +290,9 @@ async def send_message(
         try:
             checkpoint = graph.get_state(config)
             has_existing_state = (
-                checkpoint is not None and checkpoint.values is not None
+                checkpoint is not None
+                and checkpoint.values is not None
+                and "messages" in checkpoint.values
             )
         except Exception:
             has_existing_state = False

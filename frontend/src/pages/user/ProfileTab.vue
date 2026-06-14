@@ -389,15 +389,17 @@ export default {
       try {
         const response = await getDBTSkills()
 
+        const skillList = response.skills || []
+
         // 按分类分组技能
         const skillsByCategory = {}
-        Object.entries(response.data).forEach(([skillName, skillData]) => {
+        skillList.forEach((skillData) => {
           const category = skillData.category
           if (!skillsByCategory[category]) {
             skillsByCategory[category] = []
           }
           skillsByCategory[category].push({
-            name: skillName,
+            name: skillData.name,
             category: category,
             introduction: skillData.introduction
           })
@@ -424,7 +426,7 @@ export default {
           }
         })
 
-        console.log('✅ DBT技能加载成功，共', Object.keys(response.data).length, '个技能')
+        console.log('✅ DBT技能加载成功，共', skillList.length, '个技能')
       } catch (error) {
         console.error('❌ 加载DBT技能失败:', error)
         // 回退到默认数据
