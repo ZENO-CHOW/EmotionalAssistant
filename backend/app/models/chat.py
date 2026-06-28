@@ -53,6 +53,12 @@ class RequiresInputSchema(BaseModel):
     )
     prompt: str = Field(..., description="提示文本")
     options: Optional[List] = Field(None, description="选项列表")
+    skill_name: Optional[str] = Field(None, description="技能名称")
+    introduction: Optional[str] = Field(None, description="技能简介")
+    step_number: Optional[int] = Field(None, description="当前步骤编号")
+    total_steps: Optional[int] = Field(None, description="总步骤数")
+    content: Optional[str] = Field(None, description="步骤内容")
+    is_last_step: Optional[bool] = Field(None, description="是否最后一步")
 
 
 class ChatMessageResponse(BaseModel):

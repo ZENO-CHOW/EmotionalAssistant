@@ -3,12 +3,11 @@
 评估技能练习效果（LLM + 规则双轨）
 """
 
-from typing import Dict, Any, Optional
+from typing import Optional
 from sqlalchemy.orm import Session
 from langchain_core.messages import AIMessage, HumanMessage
 from app.agent.state import AgentState
 from app.core.evaluator import Evaluator
-from app.core.llm_client import get_llm_client
 
 
 def effectiveness_evaluation_node(
@@ -26,7 +25,12 @@ def effectiveness_evaluation_node(
 
     if state.get("before_intensity") is None:
         state["before_intensity"] = before_intensity
-        state["next_action"] = "request_evaluation"
+
+    if (
+        state.get("after_intensity") is None
+        and state.get("request_type") != "intensity_rating"
+    ):
+        state["next_action"] = "wait_evaluation_result"
         state["requires_user_input"] = True
 
         eval_prompt = """练习结束后，请评估你现在的情绪状态。
@@ -67,7 +71,6 @@ def effectiveness_evaluation_node(
 
     state["effectiveness"] = effectiveness
 
-    llm = get_llm_client()
     feedback = _generate_feedback(state)
 
     state["messages"] = list(state["messages"]) + [AIMessage(content=feedback)]
@@ -79,9 +82,12 @@ def effectiveness_evaluation_node(
     if improvement <= 0 and before_int >= 7:
         state["recommended_skill"] = None
         state["should_end"] = False
+        state["next_action"] = None
+        state["requires_user_input"] = False
     else:
         state["should_end"] = True
         state["next_action"] = "generate_summary"
+        state["requires_user_input"] = False
 
     return state
 

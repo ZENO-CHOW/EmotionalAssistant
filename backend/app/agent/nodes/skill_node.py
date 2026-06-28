@@ -26,6 +26,15 @@ def skill_recommendation_node(
     if not state.get("current_emotion"):
         return state
 
+    if state.get("recommended_skill") and state.get("next_action") in {
+        "wait_skill_confirmation",
+        "wait_step_completion",
+        "skill_completed",
+        "request_evaluation",
+        "wait_evaluation_result",
+    }:
+        return state
+
     emotion = state["current_emotion"] or {}
 
     recommender = SkillRecommender(db)

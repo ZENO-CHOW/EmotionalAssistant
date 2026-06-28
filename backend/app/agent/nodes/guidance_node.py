@@ -3,7 +3,7 @@
 引导用户练习 DBT 技能（LLM 动态生成话术）
 """
 
-from typing import Dict, Any, Optional
+from typing import Dict, Optional
 from sqlalchemy.orm import Session
 from langchain_core.messages import AIMessage, HumanMessage
 from app.agent.state import AgentState
@@ -35,6 +35,24 @@ def skill_guidance_node(state: AgentState, db: Optional[Session] = None) -> Agen
         return _handle_skill_confirmation(state, skill_info, steps)
 
     if skill_step > 0 and skill_step <= len(steps):
+        if state.get("step_completed"):
+            next_step = skill_step + 1
+            state["step_completed"] = False
+            if next_step > len(steps):
+                state["skill_step"] = -1
+                state["requires_user_input"] = False
+                state["next_action"] = "skill_completed"
+                state["guidance_state"] = {
+                    "current_step": len(steps),
+                    "total_steps": len(steps),
+                    "completed": True,
+                    "waiting_for_input": False,
+                }
+                return state
+
+            state["skill_step"] = next_step
+            return _handle_skill_step(state, skill_info, steps, next_step)
+
         return _handle_skill_step(state, skill_info, steps, skill_step)
 
     return state
@@ -44,6 +62,38 @@ def _handle_skill_confirmation(
     state: AgentState, skill_info: Dict, steps: list
 ) -> AgentState:
     """处理技能开始前的确认"""
+    confirmation = state.get("skill_confirmation") or {}
+    accepted = confirmation.get("accepted")
+
+    if accepted is True:
+        state["skill_confirmation"] = None
+        if not steps:
+            state["skill_step"] = -1
+            state["requires_user_input"] = False
+            state["next_action"] = "skill_completed"
+            state["guidance_state"] = {
+                "current_step": 0,
+                "total_steps": 0,
+                "completed": True,
+                "waiting_for_input": False,
+            }
+            return state
+
+        state["skill_step"] = 1
+        state["requires_user_input"] = False
+        state["next_action"] = None
+        return _handle_skill_step(state, skill_info, steps, 1)
+
+    if accepted is False:
+        skill_name = skill_info.get("name", "这个练习")
+        response = f"没关系，我们不急着开始「{skill_name}」。你可以继续跟我说说现在的感受，或者等准备好了再试。"
+        state["messages"] = list(state["messages"]) + [AIMessage(content=response)]
+        state["skill_confirmation"] = None
+        state["requires_user_input"] = False
+        state["next_action"] = None
+        state["should_end"] = False
+        return state
+
     skill_name = skill_info.get("name", "")
     introduction = skill_info.get("introduction", "")
 
@@ -61,13 +111,26 @@ def _handle_skill_confirmation(
 直接生成邀请语，不需要JSON格式。"""
 
     llm = get_llm_client()
-    response = llm.generate_response(
-        system_prompt=confirmation_prompt, user_message="生成邀请语"
-    )
+    if getattr(llm, "client", None):
+        response = llm.generate_response(
+            system_prompt=confirmation_prompt, user_message="生成邀请语"
+        )
+    else:
+        response = (
+            f"我想邀请你试试「{skill_name}」。{introduction}"
+            "这个练习大约需要5-10分钟，找一个相对安静、不被打扰的地方就可以。"
+            "你现在方便开始吗？"
+        )
 
     state["messages"] = list(state["messages"]) + [AIMessage(content=response)]
     state["requires_user_input"] = True
     state["next_action"] = "wait_skill_confirmation"
+    state["guidance_state"] = {
+        "current_step": 0,
+        "total_steps": len(steps),
+        "completed": False,
+        "waiting_for_input": True,
+    }
 
     return state
 
@@ -87,26 +150,56 @@ def _handle_skill_step(
             break
 
     llm = get_llm_client()
-    guidance = llm.generate_guidance(
-        skill_name=skill_name,
-        skill_category=skill_info.get("category", ""),
-        total_steps=len(steps),
-        current_step=step_num,
-        step_content=step_content,
-        user_context=user_context,
-    )
+    if getattr(llm, "client", None):
+        guidance = llm.generate_guidance(
+            skill_name=skill_name,
+            skill_category=skill_info.get("category", ""),
+            total_steps=len(steps),
+            current_step=step_num,
+            step_content=step_content,
+            user_context=user_context,
+        )
+    else:
+        guidance = _format_step_message(skill_name, step_num, len(steps), step_content)
 
     state["messages"] = list(state["messages"]) + [AIMessage(content=guidance)]
 
     if step_num < len(steps):
         state["next_action"] = "wait_step_completion"
         state["requires_user_input"] = True
+        state["guidance_state"] = {
+            "current_step": step_num,
+            "total_steps": len(steps),
+            "content": step_content,
+            "completed": False,
+            "waiting_for_input": True,
+            "is_last_step": False,
+        }
     else:
-        state["skill_step"] = -1
-        state["next_action"] = "skill_completed"
+        state["next_action"] = "wait_step_completion"
         state["requires_user_input"] = True
+        state["guidance_state"] = {
+            "current_step": step_num,
+            "total_steps": len(steps),
+            "content": step_content,
+            "completed": False,
+            "waiting_for_input": True,
+            "is_last_step": True,
+        }
 
     return state
+
+
+def _format_step_message(
+    skill_name: str, step_num: int, total_steps: int, step_content: str
+) -> str:
+    """LLM不可用时的步骤引导模板。"""
+    opening = f"很好，我们开始练习「{skill_name}」。\n\n" if step_num == 1 else ""
+    return (
+        f"{opening}步骤 {step_num}/{total_steps}\n\n"
+        f"{step_content}\n\n"
+        "完成后告诉我，我会继续带你进行下一步。"
+    )
 
 
 def _generate_guidance_message(

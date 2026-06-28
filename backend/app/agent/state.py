@@ -58,6 +58,8 @@ class AgentState(TypedDict):
     skill_step: int
     skill_history: List[Dict]
     skill_confidence: Optional[float]
+    skill_confirmation: Optional[Dict]
+    step_completed: bool
 
     # ========== 干预引导AGENT输出 ==========
     guidance_state: Optional[Dict]
@@ -68,6 +70,7 @@ class AgentState(TypedDict):
     should_end: bool
     requires_user_input: bool
     next_action: Optional[str]
+    request_type: Optional[str]
 
     # ========== 会话总结 ==========
     session_summary: Optional[str]
@@ -96,6 +99,8 @@ def create_initial_state(session_id: str, user_id: int) -> AgentState:
         recommended_skill=None,
         skill_step=-1,
         skill_history=[],
+        skill_confirmation=None,
+        step_completed=False,
         before_intensity=None,
         after_intensity=None,
         effectiveness=None,
@@ -119,4 +124,5 @@ def create_initial_state(session_id: str, user_id: int) -> AgentState:
         guidance_state=None,
         current_agent=None,
         latest_message=None,
+        request_type=None,
     )

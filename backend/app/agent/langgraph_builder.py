@@ -33,6 +33,7 @@ def create_agent_graph(checkpointer=None):
     """
     workflow = StateGraph(AgentState)
 
+    workflow.add_node("entry_router", _entry_router_node)
     workflow.add_node("image_recognition", image_recognition_node)
     workflow.add_node("intensity_assessment", intensity_assessment_node)
     workflow.add_node("emotion_recognition", emotion_recognition_node)
@@ -44,7 +45,17 @@ def create_agent_graph(checkpointer=None):
     workflow.add_node("effectiveness_evaluation", effectiveness_evaluation_node)
     workflow.add_node("summary_generation", session_summary_node)
 
-    workflow.set_entry_point("emotion_recognition")
+    workflow.set_entry_point("entry_router")
+
+    workflow.add_conditional_edges(
+        "entry_router",
+        _route_from_entry,
+        {
+            "emotion_recognition": "emotion_recognition",
+            "skill_guidance": "skill_guidance",
+            "effectiveness_evaluation": "effectiveness_evaluation",
+        },
+    )
 
     workflow.add_conditional_edges(
         "image_recognition",
@@ -125,6 +136,38 @@ def create_agent_graph(checkpointer=None):
     return workflow.compile(checkpointer=checkpointer)
 
 
+def _entry_router_node(state: AgentState) -> Dict[str, Any]:
+    """轻量入口节点，根据等待中的用户动作决定本轮从哪里继续。"""
+    return {}
+
+
+def _route_from_entry(state: AgentState) -> str:
+    """根据当前请求类型和等待状态选择入口。"""
+    request_type = state.get("request_type")
+    next_action = state.get("next_action")
+
+    if (
+        request_type == "skill_confirmation"
+        and next_action == "wait_skill_confirmation"
+    ):
+        return "skill_guidance"
+
+    if request_type == "step_completion" and next_action == "wait_step_completion":
+        return "skill_guidance"
+
+    if request_type == "intensity_rating" and next_action in {
+        "request_evaluation",
+        "wait_evaluation_result",
+        "skill_completed",
+    }:
+        return "effectiveness_evaluation"
+
+    if next_action == "skill_completed":
+        return "effectiveness_evaluation"
+
+    return "emotion_recognition"
+
+
 def _route_after_image_recognition(state: AgentState) -> str:
     """图片识别后的路由逻辑"""
     if state.get("pending_image_urls"):
@@ -180,14 +223,9 @@ def _route_after_recommendation(state: AgentState) -> str:
 
 def _route_after_guidance(state: AgentState) -> str:
     """技能引导后的路由逻辑"""
-    skill_step = state.get("skill_step", -1)
-
-    if skill_step > 0 and skill_step != -1:
-        return "continue_guidance"
-    elif skill_step == -1:
+    if state.get("next_action") == "skill_completed":
         return "effectiveness_evaluation"
-    else:
-        return "end"
+    return "end"
 
 
 def _route_after_evaluation(state: AgentState) -> str:
@@ -203,4 +241,3 @@ def create_agent_with_memory():
     """创建带内存持久化的 Agent（开发环境）"""
     checkpointer = MemorySaver()
     return create_agent_graph(checkpointer=checkpointer)
-

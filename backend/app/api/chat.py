@@ -93,15 +93,20 @@ def parse_user_input(request: ChatMessageRequest) -> dict:
         包含 parsed_intensity, parsed_body_sensation, parsed_image_emotion, parsed_pending_image_url 的字典
     """
     parsed: dict = {
+        "request_type": request.message_type.value,
         "intensity": None,
         "body_sensation": None,
         "image_emotion": None,
         "pending_image_urls": None,
+        "skill_confirmation": None,
+        "step_completed": False,
     }
 
     if request.message_type == MessageType.INTENSITY_RATING:
         if request.metadata:
-            parsed["intensity"] = request.metadata.get("value")
+            parsed["intensity"] = request.metadata.get(
+                "value", request.metadata.get("intensity")
+            )
             logger.info(f"解析强度选择: {parsed['intensity']}")
 
     elif request.message_type == MessageType.BODY_SELECTION:
@@ -118,7 +123,69 @@ def parse_user_input(request: ChatMessageRequest) -> dict:
                 f"解析图片选择: image_emotion={parsed['image_emotion']}, pending_image_urls={len(parsed['pending_image_urls'])}张图片"
             )
 
+    elif request.message_type == MessageType.SKILL_CONFIRMATION:
+        choice = request.metadata.get("choice") if request.metadata else request.message
+        choice_text = str(choice or request.message)
+        accepted = any(
+            word in choice_text for word in ["愿意", "好", "好的", "可以", "试试", "行"]
+        )
+        declined = any(word in choice_text for word in ["再想想", "不", "不要", "不了"])
+        parsed["skill_confirmation"] = {
+            "choice": choice_text,
+            "accepted": accepted and not declined,
+        }
+        logger.info(f"解析技能确认: {parsed['skill_confirmation']}")
+
+    elif request.message_type == MessageType.STEP_COMPLETION:
+        parsed["step_completed"] = True
+        logger.info("解析步骤完成")
+
     return parsed
+
+
+def apply_parsed_input_to_state(state: dict, parsed_input: dict) -> None:
+    """把本轮结构化输入写入 Agent 状态。"""
+    state["request_type"] = parsed_input.get("request_type")
+    state["skill_confirmation"] = parsed_input.get("skill_confirmation")
+    state["step_completed"] = bool(parsed_input.get("step_completed"))
+
+    intensity = parsed_input.get("intensity")
+    if intensity is not None:
+        try:
+            intensity = int(intensity)
+        except (TypeError, ValueError):
+            intensity = None
+
+    if intensity is not None:
+        if state.get("next_action") in {"request_evaluation", "wait_evaluation_result"}:
+            state["after_intensity"] = intensity
+            logger.info(f"更新练习后强度: {intensity}")
+        else:
+            state["intensity"] = intensity
+            logger.info(f"更新强度: {intensity}")
+            current_emotion = state.get("current_emotion")
+            if current_emotion is not None:
+                current_emotion["intensity"] = intensity
+
+    body_sensation = parsed_input.get("body_sensation")
+    if body_sensation:
+        state["body_sensation"] = body_sensation
+        logger.info(f"更新身体感知: {body_sensation}")
+
+    image_emotion = parsed_input.get("image_emotion")
+    if image_emotion:
+        state["image_emotion"] = {
+            "type": image_emotion,
+            "confidence": 0.9,
+            "reason": "用户选择的情绪图片",
+            "source": "image_selection",
+        }
+        logger.info(f"更新图片情绪: {image_emotion}")
+
+    pending_image_urls = parsed_input.get("pending_image_urls")
+    if pending_image_urls:
+        state["pending_image_urls"] = pending_image_urls
+        logger.info(f"设置待识别图片: {len(pending_image_urls)}张")
 
 
 def clean_llm_response(text: str) -> str:
@@ -150,6 +217,59 @@ def update_assessment_data(repo: ChatRepository, session_id: str, data: dict):
     repo.update_session(
         session_id, {"assessment_data": json.dumps(data, ensure_ascii=False)}
     )
+
+
+def build_requires_input(state: dict) -> Optional[RequiresInputSchema]:
+    """根据 Agent 状态构建前端需要展示的输入组件。"""
+    if not state.get("requires_user_input"):
+        return None
+
+    next_action = state.get("next_action", "")
+
+    if next_action == "wait_intensity_rating":
+        return RequiresInputSchema(
+            type="intensity_slider",
+            prompt="请评估你当前的情绪强度",
+            options=None,
+        )
+
+    if next_action in {"request_evaluation", "wait_evaluation_result"}:
+        return RequiresInputSchema(
+            type="intensity_slider",
+            prompt="请评估练习后你当前的情绪强度",
+            options=None,
+        )
+
+    if next_action == "wait_skill_confirmation":
+        skill = state.get("recommended_skill") or {}
+        return RequiresInputSchema(
+            type="skill_confirmation",
+            prompt="你是否愿意尝试这个技能练习？",
+            options=["愿意", "再想想"],
+            skill_name=skill.get("name"),
+            introduction=skill.get("introduction"),
+        )
+
+    if next_action == "wait_step_completion":
+        guidance_state = state.get("guidance_state") or {}
+        return RequiresInputSchema(
+            type="step_completion",
+            prompt="请完成当前步骤后告诉我你的感受",
+            options=None,
+            step_number=guidance_state.get("current_step"),
+            total_steps=guidance_state.get("total_steps"),
+            content=guidance_state.get("content"),
+            is_last_step=guidance_state.get("is_last_step", False),
+        )
+
+    if next_action == "body_sensation":
+        return RequiresInputSchema(
+            type="body_selector",
+            prompt="请选择身体不适的部位",
+            options=None,
+        )
+
+    return RequiresInputSchema(type="general", prompt="请继续输入", options=None)
 
 
 @router.post("/chat/message", response_model=ChatMessageResponse)
@@ -276,11 +396,6 @@ async def send_message(
 
         parsed_input = parse_user_input(request)
 
-        intensity = parsed_input["intensity"]
-        body_sensation = parsed_input["body_sensation"]
-        image_emotion = parsed_input["image_emotion"]
-        pending_image_urls = parsed_input["pending_image_urls"]
-
         # 状态管理：恢复已有状态或创建新状态
         graph = create_agent_graph(checkpointer=_checkpointer)
         config: RunnableConfig = {"configurable": {"thread_id": str(session.id)}}
@@ -304,58 +419,14 @@ async def send_message(
                 HumanMessage(content=request.message)
             ]
 
-            # 更新各字段（如果本次选择了）
-            if intensity is not None:
-                current_state["intensity"] = intensity
-                logger.info(f"更新强度: {intensity}")
-                current_emotion = current_state.get("current_emotion")
-                if current_emotion is not None:
-                    current_emotion["intensity"] = intensity
-
-            if body_sensation:
-                current_state["body_sensation"] = body_sensation
-                logger.info(f"更新身体感知: {body_sensation}")
-
-            if image_emotion:
-                current_state["image_emotion"] = {
-                    "type": image_emotion,
-                    "confidence": 0.9,
-                    "reason": "用户选择的情绪图片",
-                    "source": "image_selection",
-                }
-                logger.info(f"更新图片情绪: {image_emotion}")
-
-            if pending_image_urls:
-                current_state["pending_image_urls"] = pending_image_urls
-                logger.info(f"设置待识别图片: {len(pending_image_urls)}张")
-
+            apply_parsed_input_to_state(current_state, parsed_input)
             logger.info(f"恢复已有状态，会话: {session.id}")
         else:
             # 无已有状态，创建新状态
             current_state = create_initial_state(session.id, user_id)
             current_state["messages"] = messages
 
-            # 设置各字段（如果选择了）
-            if intensity is not None:
-                current_state["intensity"] = intensity
-                current_emotion = current_state.get("current_emotion")
-                if current_emotion is not None:
-                    current_emotion["intensity"] = intensity
-
-            if body_sensation:
-                current_state["body_sensation"] = body_sensation
-
-            if image_emotion:
-                current_state["image_emotion"] = {
-                    "type": image_emotion,
-                    "confidence": 0.9,
-                    "reason": "用户选择的情绪图片",
-                    "source": "image_selection",
-                }
-
-            if pending_image_urls:
-                current_state["pending_image_urls"] = pending_image_urls
-
+            apply_parsed_input_to_state(current_state, parsed_input)
             logger.info(f"创建新状态，会话: {session.id}")
 
         final_state = graph.invoke(current_state, config=config)
@@ -389,37 +460,7 @@ async def send_message(
 
         logger.info(f"用户{user_id}发送消息到会话{session.id}")
 
-        requires_input = None
-        if final_state.get("requires_user_input"):
-            next_action = final_state.get("next_action", "")
-            if next_action == "wait_intensity_rating":
-                requires_input = RequiresInputSchema(
-                    type="intensity_slider",
-                    prompt="请评估你当前的情绪强度",
-                    options=None,
-                )
-            elif next_action == "wait_skill_confirmation":
-                requires_input = RequiresInputSchema(
-                    type="skill_confirmation",
-                    prompt="你是否愿意尝试这个技能练习？",
-                    options=["愿意", "再想想"],
-                )
-            elif next_action == "wait_step_completion":
-                requires_input = RequiresInputSchema(
-                    type="step_completion",
-                    prompt="请完成当前步骤后告诉我你的感受",
-                    options=None,
-                )
-            elif next_action == "body_sensation":
-                requires_input = RequiresInputSchema(
-                    type="body_selector",
-                    prompt="请选择身体不适的部位",
-                    options=None,
-                )
-            else:
-                requires_input = RequiresInputSchema(
-                    type="general", prompt="请继续输入", options=None
-                )
+        requires_input = build_requires_input(final_state)
 
         return ChatMessageResponse(
             reply=ai_reply,  # pyright: ignore[reportArgumentType]
