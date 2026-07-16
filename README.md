@@ -1,6 +1,11 @@
 # 🌱 Xiao An — Emotional Management Assistant for College Students
 
-An MVP DBT-based emotional first-aid system powered by the DeepSeek API.
+An MVP DBT-based emotional first-aid system powered by the GPT-5.6 API.
+
+## AI Workflow and Model
+
+- **Agent workflow optimization**: The project uses <mark>GPT-5.6</mark> to optimize the agent workflow, improving the coordination and execution of emotional-support interactions.
+- **Model invocation**: The application calls the <mark>GPT-5.6 API</mark> for its large-language-model capabilities.
 
 ## Quick Start
 
@@ -20,9 +25,9 @@ Edit the `.env` file and fill in the required settings:
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `DATABASE_URL` | SQLite database URL | `sqlite:///./data/emotions.db` |
-| `LLM_API_KEY` | DeepSeek API key | - |
-| `LLM_BASE_URL` | DeepSeek API base URL | `https://api.deepseek.com` |
-| `LLM_MODEL` | DeepSeek model name | `deepseek-chat` |
+| `LLM_API_KEY` | GPT-5.6 API key | - |
+| `LLM_BASE_URL` | GPT-5.6 API base URL | - |
+| `LLM_MODEL` | GPT-5.6 model name | `gpt-5.6` |
 | `VISION_API_KEY` | Vision-model API key | - |
 | `VISION_BASE_URL` | Vision-model API base URL | `https://api.siliconflow.cn/v1` |
 | `VISION_MODEL` | Vision-model name | `Qwen/Qwen3-VL-30B-A3B-Instruct` |
@@ -93,14 +98,14 @@ Password: `admin123`
 - **Frontend**: Vue.js 3 + Vite
 - **Backend**: Python + FastAPI
 - **Database**: SQLite
-- **AI**: DeepSeek API
+- **AI**: GPT-5.6 API (used for model invocation and agent-workflow optimization)
 - **Design**: Liquid glass with a forest-green theme
 
 ## Features
 
 ### Completed
 
-- ✅ Real-time chat (integrated with DeepSeek)
+- ✅ Real-time chat (integrated with GPT-5.6)
 - ✅ Quick emotion selection (anxiety, sadness, anger, and emptiness)
 - ✅ Conversation history (in-memory storage)
 - ✅ Journal display (static example)
@@ -166,9 +171,9 @@ npm run dev
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `DEEPSEEK_API_KEY` | DeepSeek API key | - |
-| `DEEPSEEK_API_URL` | API URL | `https://api.deepseek.com/v1/chat/completions` |
-| `DEEPSEEK_MODEL` | Model name | `deepseek-chat` |
+| `LLM_API_KEY` | GPT-5.6 API key | - |
+| `LLM_BASE_URL` | GPT-5.6 API base URL | - |
+| `LLM_MODEL` | GPT-5.6 model name | `gpt-5.6` |
 
 ## Xiao An's Persona
 
