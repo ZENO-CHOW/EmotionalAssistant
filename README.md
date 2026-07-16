@@ -4,7 +4,7 @@ An MVP DBT-based emotional first-aid system powered by the GPT-5.6 API.
 
 ## AI Workflow and Model
 
-- **Agent workflow optimization**: The project uses <mark>GPT-5.6</mark> to optimize the agent workflow, improving the coordination and execution of emotional-support interactions.
+- **Agent workflow optimization**: The project uses <mark>GPT-5.6</mark> and <mark>Codex</mark> to optimize the agent workflow, improving the coordination and execution of emotional-support interactions.
 - **Model invocation**: The application calls the <mark>GPT-5.6 API</mark> for its large-language-model capabilities.
 
 ## Quick Start
