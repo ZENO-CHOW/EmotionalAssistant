@@ -23,8 +23,8 @@ class Settings(BaseSettings):
 
     LLM_API_KEY: Optional[str] = None
     MODELSCOPE_API_KEY: Optional[str] = None
-    LLM_BASE_URL: str = "https://api-inference.modelscope.cn/v1"
-    LLM_MODEL: str = "ZhipuAI/GLM-4.7-Flash"
+    LLM_BASE_URL: str = "https://api.openai.com/v1"
+    LLM_MODEL: str = "gpt-5.6"
     LLM_TEMPERATURE: float = 0.3
     LLM_MAX_TOKENS: int = 500
     LLM_TIMEOUT: int = 60

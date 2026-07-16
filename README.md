@@ -1,133 +1,154 @@
-# 🌱 小安 - 大学生情绪管理助手
+# 🌱 Xiao An — Emotional Management Assistant for College Students
 
-基于 DeepSeek API 的 DBT 情绪急救系统 MVP
+An MVP DBT-based emotional first-aid system powered by the GPT-5.6 API.
 
-## 快速开始
+## AI Workflow and Model
 
-### 1. 配置环境变量
+- **Agent workflow optimization**: The project uses <mark>GPT-5.6</mark> to optimize the agent workflow, improving the coordination and execution of emotional-support interactions.
+- **Model invocation**: The application calls the <mark>GPT-5.6 API</mark> for its large-language-model capabilities.
 
-复制环境变量模板并配置：
+## Quick Start
+
+### 1. Configure Environment Variables
+
+Copy the environment-variable template and configure it:
 
 ```bash
 cd backend
 cp .env.example .env
-编辑 `.env` 文件，填入必要的配置：
 ```
 
-**主要配置项**：
+Edit the `.env` file and fill in the required settings:
 
-| 变量名 | 说明 | 默认值 |
-|--------|------|--------|
-| `DATABASE_URL` | SQLite 数据库地址 | `sqlite:///./data/emotions.db` |
-| `LLM_API_KEY` | DeepSeek API 密钥 | - |
-| `LLM_BASE_URL` | DeepSeek API 地址 | `https://api.deepseek.com` |
-| `LLM_MODEL` | DeepSeek 模型名称 | `deepseek-chat` |
-| `VISION_API_KEY` | 视觉模型 API 密钥 | - |
-| `VISION_BASE_URL` | 视觉模型 API 地址 | `https://api.siliconflow.cn/v1` |
-| `VISION_MODEL` | 视觉模型名称 | `Qwen/Qwen3-VL-30B-A3B-Instruct` |
+**Main configuration options**:
 
-### 2. 安装依赖
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DATABASE_URL` | SQLite database URL | `sqlite:///./data/emotions.db` |
+| `LLM_API_KEY` | GPT-5.6 API key | - |
+| `LLM_BASE_URL` | GPT-5.6 API base URL | - |
+| `LLM_MODEL` | GPT-5.6 model name | `gpt-5.6` |
+| `VISION_API_KEY` | Vision-model API key | - |
+| `VISION_BASE_URL` | Vision-model API base URL | `https://api.siliconflow.cn/v1` |
+| `VISION_MODEL` | Vision-model name | `Qwen/Qwen3-VL-30B-A3B-Instruct` |
 
-**前端依赖**:
+### 2. Install Dependencies
+
+**Frontend dependencies**:
+
 ```bash
 cd frontend && npm install
 ```
 
-**后端依赖**:
+**Backend dependencies**:
+
 ```bash
 cd backend && pip install -r requirements.txt
 ```
 
-### 3. 启动服务
+### 3. Start the Services
 
-**启动后端服务器**:
+**Start the backend server**:
+
 ```bash
 cd backend && python start_backend.py
 ```
-后端将在 http://localhost:8000 启动
 
-**启动前端开发服务器** (新终端):
+The backend starts at http://localhost:8000.
+
+**Start the frontend development server** (in a new terminal):
+
 ```bash
 cd frontend && npm run dev
 ```
-前端将在 http://localhost:8080 启动
 
-### 4. 打开网页
+The frontend starts at http://localhost:8080.
 
-在浏览器中访问：
-- 用户端：http://localhost:8080
-- 管理员端：http://localhost:8080/admin
+### 4. Open the Web App
 
-**管理员账号**：
-账户:admin
-密码:admin123
+Visit the following URLs in your browser:
 
-## 项目结构
+- User portal: http://localhost:8080
+- Admin portal: http://localhost:8080/admin
+
+**Administrator account**:
+
+Username: `admin`
+Password: `admin123`
+
+## Project Structure
 
 ```
 .
-├── frontend/              # Vue.js 前端项目
-│   ├── src/              # 前端源码
-│   ├── index.html        # 入口 HTML
-│   ├── package.json      # 前端依赖
-│   └── vite.config.js    # Vite 配置
-├── backend/               # Python FastAPI 后端
-│   ├── app/              # 后端应用源码
-│   ├── .env              # 环境变量配置
-│   ├── requirements.txt  # Python 依赖
-│   └── start_backend.py  # 后端启动脚本
-└── README.md             # 说明文档
+├── frontend/              # Vue.js frontend project
+│   ├── src/               # Frontend source code
+│   ├── index.html         # HTML entry point
+│   ├── package.json       # Frontend dependencies
+│   └── vite.config.js     # Vite configuration
+├── backend/               # Python FastAPI backend
+│   ├── app/               # Backend application source code
+│   ├── .env               # Environment-variable configuration
+│   ├── requirements.txt   # Python dependencies
+│   └── start_backend.py   # Backend startup script
+└── README.md              # Documentation
 ```
 
-## 技术栈
+## Tech Stack
 
-- **前端**: Vue.js 3 + Vite
-- **后端**: Python + FastAPI
-- **数据库**: SQLite
-- **AI**: DeepSeek API
-- **设计**: 液态玻璃 + 森林绿主题
+- **Frontend**: Vue.js 3 + Vite
+- **Backend**: Python + FastAPI
+- **Database**: SQLite
+- **AI**: GPT-5.6 API (used for model invocation and agent-workflow optimization)
+- **Design**: Liquid glass with a forest-green theme
 
-## 功能特性
+## Features
 
-### 已完成
-- ✅ 实时对话（接入 DeepSeek）
-- ✅ 情绪快捷选择（焦虑/悲伤/愤怒/空虚）
-- ✅ 对话历史记录（内存存储）
-- ✅ 日记展示（静态示例）
-- ✅ 个人中心（静态示例）
-- ✅ 数据库持久化
-- ✅ 用户登录系统
-- ✅ 真实日记记录
-- ✅ 情绪数据统计
+### Completed
 
-### 待开发
-- ⏳ 危机识别与转介
+- ✅ Real-time chat (integrated with GPT-5.6)
+- ✅ Quick emotion selection (anxiety, sadness, anger, and emptiness)
+- ✅ Conversation history (in-memory storage)
+- ✅ Journal display (static example)
+- ✅ Personal profile (static example)
+- ✅ Database persistence
+- ✅ User authentication
+- ✅ Real journal entries
+- ✅ Emotion-data analytics
 
-## API 接口
+### Planned
+
+- ⏳ Crisis detection and referral
+
+## API Endpoints
 
 ### POST /api/chat
-发送消息给小安
 
-**请求**:
+Send a message to Xiao An.
+
+**Request**:
+
 ```json
 {
-  "message": "我很焦虑",
-  "userId": "default"  // 可选
+  "message": "I feel very anxious",
+  "userId": "default" // Optional
 }
 ```
 
-**响应**:
+**Response**:
+
 ```json
 {
-  "message": "听起来你现在很难受...",
+  "message": "It sounds like you're having a really difficult time right now...",
   "success": true
 }
 ```
 
 ### POST /api/clear
-清除对话历史
 
-**请求**:
+Clear conversation history.
+
+**Request**:
+
 ```json
 {
   "userId": "default"
@@ -135,36 +156,38 @@ cd frontend && npm run dev
 ```
 
 ### GET /api/health
-健康检查
 
-## 开发说明
+Health check.
 
-### 开发模式（自动重启）
+## Development Notes
+
+### Development Mode (Auto Restart)
 
 ```bash
 npm run dev
 ```
 
-### 环境变量
+### Environment Variables
 
-| 变量名 | 说明 | 默认值 |
-|--------|------|--------|
-| DEEPSEEK_API_KEY | DeepSeek API密钥 | - |
-| DEEPSEEK_API_URL | API地址 | https://api.deepseek.com/v1/chat/completions |
-| DEEPSEEK_MODEL | 模型名称 | deepseek-chat |
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `LLM_API_KEY` | GPT-5.6 API key | - |
+| `LLM_BASE_URL` | GPT-5.6 API base URL | - |
+| `LLM_MODEL` | GPT-5.6 model name | `gpt-5.6` |
 
-## 小安的人设
+## Xiao An's Persona
 
-- **身份**: 专门帮助大学生应对情绪困扰的AI助手
-- **风格**: 口语化、温暖、像朋友
-- **方法**: 基于DBT（辩证行为疗法）
-- **原则**: 共情优先、给选择权、承认局限
+- **Role**: An AI assistant dedicated to helping college students cope with emotional difficulties
+- **Style**: Conversational, warm, and friend-like
+- **Approach**: Based on DBT (Dialectical Behavior Therapy)
+- **Principles**: Empathy first, preserve user choice, and acknowledge limitations
 
-## 注意事项
+## Important Notice
 
-⚠️ **不要用于真实的心理危机**：
-- 无法替代专业心理咨询
-- 遇到危机请拨打专业热线
+⚠️ **Do not use this for an actual mental-health crisis**:
+
+- It cannot replace professional mental-health care.
+- If you are in crisis, please contact a professional crisis hotline.
 
 ## License
 

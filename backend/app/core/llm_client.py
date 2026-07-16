@@ -1,6 +1,6 @@
 """
 LLM客户端封装
-支持DeepSeek和OpenAI兼容的API
+使用 OpenAI GPT API。
 """
 
 import logging
@@ -17,13 +17,13 @@ MessageList = List[MessageDict]
 
 
 class LLMClient:
-    """LLM客户端，封装DeepSeek API调用"""
+    """LLM 客户端，封装 OpenAI GPT API 调用。"""
 
     def __init__(self):
         """初始化LLM客户端"""
         if (
             not settings.LLM_API_KEY
-            or settings.LLM_API_KEY == "your-deepseek-api-key-here"
+            or settings.LLM_API_KEY == "your-openai-api-key-here"
         ):
             logger.warning("LLM API密钥未配置，将使用模拟模式")
             self.client = None
